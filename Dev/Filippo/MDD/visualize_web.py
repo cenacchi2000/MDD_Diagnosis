@@ -37,21 +37,6 @@ def plot_data_for_table(patient_id, conn, table_name):
     if q_col is None:
         return None
 
-    cur = conn.cursor()
-    cur.execute(
-        f"SELECT {q_col}, score FROM {table_name} WHERE patient_id = ?",
-        (patient_id,),
-    )
-    rows = cur.fetchall()
-
-    fig, ax = plt.subplots(figsize=(9, 5))
-    if not rows:
-        ax.text(0.5, 0.5, f'No data found for {table_name}', ha='center', va='center')
-        ax.axis('off')
-    else:
-        labels = [str(r[0])[:40] for r in rows]
-        scores = [r[1] for r in rows]
-        ax.bar(labels, scores, color='#0d6efd')
         ax.set_title(table_name.replace('responses_', '').upper())
         ax.set_ylabel('Score')
         ax.tick_params(axis='x', labelrotation=90)
