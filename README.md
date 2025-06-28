@@ -21,9 +21,11 @@ Assessment scripts transmit each response to the URL stored in the
 `SERVER_URL` environment variable (default: `http://localhost:5000/store`).  Set
 this variable before running a questionnaire so that data reaches the server:
 
+
 ```bash
 export SERVER_URL="http://<server-ip>:5000/store"
 ```
+
 
 Replace `<server-ip>` with the host running `http_server.py`.
 
@@ -32,10 +34,12 @@ Replace `<server-ip>` with the host running `http_server.py`.
 After completing one or more questionnaires, check that the answers were
 recorded:
 
+
 ```bash
 sqlite3 patient_responses.db ".tables"
 sqlite3 patient_responses.db "SELECT * FROM patient_demographics LIMIT 5;"
 ```
+
 
 The first command shows all tables created by the server.  You can then run
 standard SQLite queries to inspect the contents and confirm that data was saved.
@@ -50,6 +54,7 @@ questionnaire independently you can set the environment variable `patient_id`
 before execution.
 
 ## Web dashboard
+
 
 You can view interactive charts of questionnaire results through a small
 dashboard script that relies only on Python's standard library. It reads from
@@ -66,4 +71,6 @@ containing numeric scores.  Reload the page after new assessments to view the
 latest results.
 
 You can also launch the same dashboard with `visualize_results.py`, which simply
+
 imports the `run` function and starts the server on the default port.
+
