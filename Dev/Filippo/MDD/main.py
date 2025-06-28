@@ -1,5 +1,9 @@
 import asyncio
 import uuid
+import os
+import sys
+
+sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
 import datetime
 
@@ -168,6 +172,12 @@ async def main():
         return
     await run_all_assessments(patient_id)
     print("\n✅ All assessments completed.")
+
+
+class Activity:
+    async def on_start(self):
+        await main()
+        self.stop()
 
 if __name__ == "__main__":
     asyncio.run(main())
