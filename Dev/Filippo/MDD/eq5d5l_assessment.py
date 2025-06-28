@@ -3,6 +3,7 @@ import sqlite3
 import uuid
 import datetime
 import asyncio
+import os
 
 # Initialize DB
 conn = sqlite3.connect("patient_responses.db")
@@ -69,10 +70,12 @@ def get_timestamp():
     return datetime.datetime.now().isoformat()
 
 async def collect_patient_id():
-    pid = input("Enter patient ID (or press Enter to auto-generate): ").strip()
+    pid = os.environ.get("patient_id")
     if not pid:
-        pid = f"PAT-{uuid.uuid4().hex[:8]}"
-        print(f"[Info] Generated Patient ID: {pid}")
+        pid = input("Enter patient ID (or press Enter to auto-generate): ").strip()
+        if not pid:
+            pid = f"PAT-{uuid.uuid4().hex[:8]}"
+            print(f"[Info] Generated Patient ID: {pid}")
     return pid
 
 async def run_eq5d5l_questionnaire():

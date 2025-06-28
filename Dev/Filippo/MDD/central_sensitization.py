@@ -3,6 +3,7 @@ import asyncio
 import datetime
 import sqlite3
 import uuid
+import os
 
 # Initialize DB connection
 conn = sqlite3.connect("patient_responses.db")
@@ -33,11 +34,13 @@ cursor.execute('''
 ''')
 conn.commit()
 
-# Patient ID
-patient_id = input("Enter patient identifier (or press Enter to generate one): ").strip()
+# Patient ID – prefer environment variable from main.py
+patient_id = os.environ.get("patient_id")
 if not patient_id:
-    patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
-    print(f"Generated Patient ID: {patient_id}")
+    patient_id = input("Enter patient identifier (or press Enter to generate one): ").strip()
+    if not patient_id:
+        patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
+        print(f"Generated Patient ID: {patient_id}")
 
 def timestamp():
     return datetime.datetime.now().isoformat()

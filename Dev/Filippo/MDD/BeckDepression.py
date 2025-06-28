@@ -4,6 +4,7 @@ import datetime
 import asyncio
 import sqlite3
 import uuid
+import os
 
 # Setup shared database
 conn = sqlite3.connect("patient_responses.db")
@@ -20,11 +21,13 @@ cursor.execute('''
 ''')
 conn.commit()
 
-# Generate patient ID
-patient_id = input("Enter patient identifier (or press Enter to generate one): ").strip()
+# Generate patient ID, preferring environment variable
+patient_id = os.environ.get("patient_id")
 if not patient_id:
-    patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
-    print(f"Generated Patient ID: {patient_id}")
+    patient_id = input("Enter patient identifier (or press Enter to generate one): ").strip()
+    if not patient_id:
+        patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
+        print(f"Generated Patient ID: {patient_id}")
 
 async def robot_say(text: str):
     print(f"[Ameca says]: {text}\n")
