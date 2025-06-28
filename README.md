@@ -2,14 +2,6 @@
 
 ## Running the HTTP server
 
-Patient questionnaire results can be stored remotely using
-`Dev/Filippo/MDD/http_server.py`.  The server relies on Flask and writes all
-incoming data to `patient_responses.db` in the current directory.
-
-```bash
-pip install flask
-python Dev/Filippo/MDD/http_server.py
-```
 
 The server listens on port `5000` and automatically creates the database file if
 it does not already exist.
