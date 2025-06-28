@@ -64,6 +64,38 @@ import datetime
 import asyncio
 
 
+import os
+import sys
+
+sys.path.append(os.path.dirname(__file__))
+from remote_storage import send_to_server
+
+async def robot_say(text: str) -> None:
+    """Speak through Ameca with console fallback."""
+    print(f"[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
+
+
+async def robot_listen() -> str:
+    """Block until a spoken utterance is received."""
+    while True:
+        try:
+            evt = await system.wait_for_event("speech_recognized")
+            if isinstance(evt, dict):
+                text = evt.get("text", "").strip()
+                if text:
+                    return text
+        except Exception:
+            pass
+        await asyncio.sleep(0.1)
+import uuid
+import datetime
+import asyncio
+
+
 
 # EQ-5D-5L dimension descriptions
 eq5d5l_dimensions = {
@@ -183,6 +215,7 @@ async def run_eq5d5l_questionnaire():
         health_state_code=health_state_code,
         vas_score=vas_score,
     )
+
 
     await robot_say(f"✅ EQ-5D-5L complete. Your health state code is: {health_state_code}")
 

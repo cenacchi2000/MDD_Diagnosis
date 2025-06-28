@@ -146,6 +146,7 @@ def interpret_score(total_score):
     elif total_score <= 34:
         return "Severe disability"
     else:
+
         return "Completely disabled"
 
 async def run_odi():

@@ -93,25 +93,32 @@ PATIENT_TEMPLATE = """<!doctype html>
   <a class='btn btn-secondary' href='/'>Back</a>
 </div>
 <script>
-  const chartData = {charts_json};
-  Object.entries(chartData).forEach(([table, data], idx) => {
-    const ctx = document.getElementById('chart-' + (idx + 1));
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: data.labels,
-        datasets: [{
-          label: 'Score',
-          data: data.scores,
-          backgroundColor: '#0d6efd'
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: { y: { beginAtZero: true } }
+
+  const patientId = "{patient_id}";
+  const charts = {};
+
+  async function fetchData() {
+    const resp = await fetch('/api/patient/' + patientId);
+    const data = await resp.json();
+    Object.entries(data).forEach(([table, d], idx) => {
+      const ctx = document.getElementById('chart-' + (idx + 1));
+      if (!charts[table]) {
+        charts[table] = new Chart(ctx, {
+          type: 'bar',
+          data: { labels: d.labels, datasets: [{ label: 'Score', data: d.scores, backgroundColor: '#0d6efd' }] },
+          options: { responsive: true, scales: { y: { beginAtZero: true } } }
+        });
+      } else {
+        charts[table].data.labels = d.labels;
+        charts[table].data.datasets[0].data = d.scores;
+        charts[table].update();
       }
     });
-  });
+  }
+
+  fetchData();
+  setInterval(fetchData, 5000);
+
 </script>
 </body>
 </html>"""
@@ -125,9 +132,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             m = re.match(r'^/patient/(.+)$', self.path)
             if m:
                 self.send_patient(m.group(1))
-            else:
-                self.send_response(404)
-                self.end_headers()
+
+                return
+            m = re.match(r'^/api/patient/(.+)$', self.path)
+            if m:
+                self.send_patient_api(m.group(1))
+                return
+            self.send_response(404)
+            self.end_headers()
+
 
     def _write_html(self, html: str) -> None:
         self.send_response(200)
@@ -178,6 +191,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
             charts_json=json.dumps(charts),
         )
         self._write_html(html)
+
+
+    def send_patient_api(self, patient_id: str):
+        conn = sqlite3.connect(DB_NAME)
+        tables = get_response_tables(conn)
+        charts = {}
+        for table in tables:
+            data = get_data_for_table(patient_id, conn, table)
+            if data:
+                charts[table] = data
+        conn.close()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(charts).encode('utf-8'))
+
 
 
 def run(port: int = 8000) -> None:

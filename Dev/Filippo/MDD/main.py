@@ -223,14 +223,12 @@ async def run_all_assessments(patient_id: str):
     await BeckDepression.run_beck_depression_inventory()
 
 async def main():
-    system.messaging.post("mode_change", "silent")
     patient_id = await collect_demographics()
     if not patient_id:
-        system.messaging.post("mode_change", "interaction")
         return
     await run_all_assessments(patient_id)
     await robot_say("All assessments completed.")
-    system.messaging.post("mode_change", "interaction")
+
 
 
 class Activity:
