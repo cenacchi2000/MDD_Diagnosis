@@ -1,7 +1,10 @@
+import os
+import sys
+
+sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
 import uuid
 import datetime
-import os
 
 
 
@@ -9,10 +12,7 @@ import os
 def get_patient_id() -> str:
     pid = os.environ.get("patient_id")
     if not pid:
-        pid = input("Enter patient identifier (or press enter to generate one): ").strip()
-        if not pid:
-            pid = f"PAT-{uuid.uuid4().hex[:8]}"
-            print(f"Generated Patient ID: {pid}")
+        pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
 
 def get_timestamp():

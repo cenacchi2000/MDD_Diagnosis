@@ -1,10 +1,13 @@
 # Pittsburgh Sleep Quality Index (PSQI) implementation script
 import asyncio
 import datetime
-from remote_storage import send_to_server
+import os
+import sys
 import uuid
 from typing import Literal
-import os
+
+sys.path.append(os.path.dirname(__file__))
+from remote_storage import send_to_server
 
 
 
@@ -24,10 +27,7 @@ def get_timestamp():
 def get_patient_id():
     pid = os.environ.get("patient_id")
     if not pid:
-        pid = input("Enter patient identifier (or press Enter to generate one): ").strip()
-        if not pid:
-            pid = f"PAT-{uuid.uuid4().hex[:8]}"
-            print(f"Generated Patient ID: {pid}")
+        pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
 
 # Map responses to scores as per PSQI guidance

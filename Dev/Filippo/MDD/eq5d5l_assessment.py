@@ -1,9 +1,12 @@
 # eq5d5l_assessment.py
+import os
+import sys
+
+sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
 import uuid
 import datetime
 import asyncio
-import os
 
 
 
@@ -63,10 +66,7 @@ def get_timestamp():
 async def collect_patient_id():
     pid = os.environ.get("patient_id")
     if not pid:
-        pid = input("Enter patient ID (or press Enter to auto-generate): ").strip()
-        if not pid:
-            pid = f"PAT-{uuid.uuid4().hex[:8]}"
-            print(f"[Info] Generated Patient ID: {pid}")
+        pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
 
 async def run_eq5d5l_questionnaire():
