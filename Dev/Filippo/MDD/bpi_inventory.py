@@ -1,6 +1,7 @@
 # Script to administer the full Brief Pain Inventory (BPI), auto-generate patient ID, and store structured answers
 # in SQLite (patient_responses.db)
 
+
 import asyncio
 import datetime
 import os
@@ -43,6 +44,7 @@ def get_patient_id() -> str:
 
 
 
+
 # Long-form BPI Questions — simplified text w/ freeform or numeric entry
 bpi_questions = [
     "1. Rate your pain at its worst in the last 24 hours (0 = No pain, 10 = Worst imaginable):",
@@ -72,6 +74,7 @@ bpi_questions = [
 ]
 
 # Auto-adjust question numbering (we split compound questions)
+
 async def run_bpi():
     patient_id = get_patient_id()
     for i, question in enumerate(bpi_questions):
@@ -91,6 +94,7 @@ async def run_bpi():
 
 
     await robot_say(f"All responses saved for Patient ID: {patient_id}")
+
 
 if __name__ == "__main__":
     asyncio.run(run_bpi())
