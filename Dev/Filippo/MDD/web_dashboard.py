@@ -1,3 +1,4 @@
+
 import json
 import re
 import sqlite3
@@ -18,6 +19,7 @@ def get_all_patient_ids(conn, tables):
     if not tables:
         return []
     cur = conn.cursor()
+
     union_query = " UNION ".join([f"SELECT patient_id FROM {t}" for t in tables])
     cur.execute(f"SELECT DISTINCT patient_id FROM ({union_query}) AS ids")
     return [str(row[0]) for row in cur.fetchall() if row[0] is not None]
@@ -29,7 +31,9 @@ def get_data_for_table(patient_id, conn, table_name):
     cols = [row[1] for row in cur.execute(f"PRAGMA table_info({table_name})")]
     if "score" not in cols:
         return None
+
     q_col = next((c for c in ("question_title", "question_text", "dimension") if c in cols), None)
+
     if not q_col:
         return None
     cur.execute(
@@ -42,6 +46,7 @@ def get_data_for_table(patient_id, conn, table_name):
     labels = [str(r[0])[:40] for r in rows]
     scores = [r[1] for r in rows]
     return {"labels": labels, "scores": scores}
+
 
 
 INDEX_TEMPLATE = """<!doctype html>
@@ -88,6 +93,7 @@ PATIENT_TEMPLATE = """<!doctype html>
   <a class='btn btn-secondary' href='/'>Back</a>
 </div>
 <script>
+
   const patientId = "{patient_id}";
   const charts = {};
 
@@ -112,6 +118,7 @@ PATIENT_TEMPLATE = """<!doctype html>
 
   fetchData();
   setInterval(fetchData, 5000);
+
 </script>
 </body>
 </html>"""
@@ -125,6 +132,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             m = re.match(r'^/patient/(.+)$', self.path)
             if m:
                 self.send_patient(m.group(1))
+
                 return
             m = re.match(r'^/api/patient/(.+)$', self.path)
             if m:
@@ -132,6 +140,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             self.send_response(404)
             self.end_headers()
+
 
     def _write_html(self, html: str) -> None:
         self.send_response(200)
@@ -183,6 +192,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         )
         self._write_html(html)
 
+
     def send_patient_api(self, patient_id: str):
         conn = sqlite3.connect(DB_NAME)
         tables = get_response_tables(conn)
@@ -198,6 +208,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(charts).encode('utf-8'))
 
 
+
 def run(port: int = 8000) -> None:
     """Start the dashboard server on the given port."""
     server = HTTPServer(('0.0.0.0', port), DashboardHandler)
@@ -207,3 +218,4 @@ def run(port: int = 8000) -> None:
 
 if __name__ == '__main__':
     run()
+

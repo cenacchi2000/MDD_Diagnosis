@@ -1,5 +1,6 @@
 # Pain Catastrophizing Scale (PCS) – Full Implementation with Scoring and DB Storage
 
+
 import os
 import sys
 
@@ -40,6 +41,7 @@ def get_patient_id() -> str:
         pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
 
+
 # PCS questions
 pcs_questions = [
     "I worry all the time about whether the pain will end.",
@@ -65,10 +67,13 @@ rating_scale = {
     "4": "All the time"
 }
 
+
 def current_timestamp():
     return datetime.datetime.now().isoformat()
 
 DIGIT_WORDS = {"zero": "0", "one": "1", "two": "2", "three": "3", "four": "4"}
+
+
 
 
 async def run_pcs():
@@ -80,6 +85,7 @@ async def run_pcs():
     for i, question in enumerate(pcs_questions):
         await robot_say(f"Q{i+1}: {question}")
 
+
         while True:
             response = (await robot_listen()).lower()
             response = DIGIT_WORDS.get(response, response)
@@ -88,6 +94,7 @@ async def run_pcs():
                 await robot_say("Thank you.")
                 break
             await robot_say("Invalid response. Please answer zero to four.")
+
 
         total_score += score
         send_to_server(

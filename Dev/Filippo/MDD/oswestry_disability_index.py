@@ -1,3 +1,4 @@
+
 import os
 import sys
 
@@ -48,6 +49,7 @@ DIGIT_WORDS = {
     "four": "4",
     "five": "5",
 }
+
 
 
 # Questionnaire structure
@@ -144,6 +146,7 @@ def interpret_score(total_score):
     elif total_score <= 34:
         return "Severe disability"
     else:
+
         return "Completely disabled"
 
 async def run_odi():
@@ -181,3 +184,4 @@ async def run_odi():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(run_odi())
+

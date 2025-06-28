@@ -1,3 +1,4 @@
+
 import asyncio
 import uuid
 import os
@@ -60,6 +61,7 @@ async def listen_clean() -> str:
 
 
 
+
 def generate_patient_id():
     return f"PAT-{uuid.uuid4().hex[:8]}"
 
@@ -75,6 +77,7 @@ def lookup_patient_id(first_name: str, last_name: str) -> str | None:
     row = cur.fetchone()
     conn.close()
     return row[0] if row else None
+
 
 async def collect_demographics():
     await robot_say("Welcome to the Pain & Mood Assessment System")
@@ -232,6 +235,7 @@ class Activity:
     async def on_start(self):
         await main()
         self.stop()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
