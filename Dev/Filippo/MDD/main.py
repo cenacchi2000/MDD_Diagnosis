@@ -1,6 +1,7 @@
 import asyncio
 import uuid
 import sqlite3
+import datetime
 
 import BeckDepression
 import bpi_inventory
@@ -11,64 +12,131 @@ import oswestry_disability_index
 import pain_catastrophizing
 import pittsburgh_sleep
 
+
+async def robot_say(text: str):
+    """Speak via TTS with console fallback."""
+    print(f"[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
+
+
+async def robot_listen() -> str:
+    """Listen for a response via console input."""
+    return input("Your response: ").strip()
+
 def generate_patient_id():
     return f"PAT-{uuid.uuid4().hex[:8]}"
 
-def collect_demographics():
-    print("\n=== Welcome to the Pain & Mood Assessment System ===\n")
+async def collect_demographics():
+    await robot_say("Welcome to the Pain & Mood Assessment System")
     patient_id = input("Enter patient ID (or press Enter to auto-generate): ").strip()
     if not patient_id:
         patient_id = generate_patient_id()
         print(f"Generated ID: {patient_id}")
 
-    print("\nPlease answer the following demographic questions:\n")
+    date = datetime.date.today().strftime("%d/%m/%Y")
 
-    date = input("Date (DD/MM/YYYY): ")
-    name_last = input("Last Name: ")
-    name_first = input("First Name: ")
-    name_middle = input("Middle Initial (optional): ")
-    phone = input("Phone Number: ")
-    sex = input("Sex (M/F): ")
-    dob = input("Date of Birth (DD/MM/YYYY): ")
+    await robot_say("Please tell me your last name")
+    name_last = await robot_listen()
 
-    marital_status = input("Marital Status (1=Single, 2=Married, 3=Widowed, 4=Separated/Divorced): ")
-    education = input("Highest Grade Completed (0–16 or M.A./M.S.): ")
-    degree = input("Professional degree (if any): ")
-    occupation = input("Current Occupation: ")
-    spouse_occupation = input("Spouse's Occupation (if any): ")
-    job_status = input("Job Status (1=FT, 2=PT, 3=Homemaker, 4=Retired, 5=Unemployed, 6=Other): ")
-    diagnosis_time = input("How many months since diagnosis?: ")
-    disease_pain = input("Pain due to present disease? (1=Yes, 2=No, 3=Uncertain): ")
-    pain_symptom = input("Was pain a symptom at diagnosis? (1=Yes, 2=No, 3=Uncertain): ")
-    surgery = input("Surgery in past month? (1=Yes, 2=No): ")
-    surgery_type = input("If YES, what kind?: ") if surgery == "1" else ""
-    other_pain = input("Experienced pain (other than minor types) last week? (1=Yes, 2=No): ")
-    pain_med_week = input("Taken pain meds last 7 days? (1=Yes, 2=No): ")
-    pain_med_daily = input("Need daily pain meds? (1=Yes, 2=No): ")
+    await robot_say("What is your first name?")
+    name_first = await robot_listen()
 
-    store_demographics(patient_id, {
-        "date": date,
-        "name_last": name_last,
-        "name_first": name_first,
-        "name_middle": name_middle,
-        "phone": phone,
-        "sex": sex,
-        "dob": dob,
-        "marital_status": marital_status,
-        "education": education,
-        "degree": degree,
-        "occupation": occupation,
-        "spouse_occupation": spouse_occupation,
-        "job_status": job_status,
-        "diagnosis_time": diagnosis_time,
-        "disease_pain": disease_pain,
-        "pain_symptom": pain_symptom,
-        "surgery": surgery,
-        "surgery_type": surgery_type,
-        "other_pain": other_pain,
-        "pain_med_week": pain_med_week,
-        "pain_med_daily": pain_med_daily,
-    })
+    await robot_say(
+        f"Hi {name_first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
+    )
+    proceed = (await robot_listen()).lower()
+    if proceed not in {"yes", "y"}:
+        await robot_say("No problem, thank you for your answer I will ask my human colleague overstep.")
+        return None
+
+    await robot_say("Thank you, let's continue.")
+
+    await robot_say("Middle initial if any")
+    name_middle = await robot_listen()
+
+    await robot_say("Phone number")
+    phone = await robot_listen()
+
+    await robot_say("Sex, M or F")
+    sex = await robot_listen()
+
+    await robot_say("Date of birth in DD/MM/YYYY format")
+    dob = await robot_listen()
+
+    await robot_say("Marital Status: 1 for Single, 2 for Married, 3 for Widowed, 4 for Separated or Divorced")
+    marital_status = await robot_listen()
+
+    await robot_say("Highest grade completed, enter 0 to 16 or M.A./M.S.")
+    education = await robot_listen()
+
+    await robot_say("Professional degree if any")
+    degree = await robot_listen()
+
+    await robot_say("Current occupation")
+    occupation = await robot_listen()
+
+    await robot_say("Spouse occupation if any")
+    spouse_occupation = await robot_listen()
+
+    await robot_say("Job status: 1 full time, 2 part time, 3 homemaker, 4 retired, 5 unemployed, 6 other")
+    job_status = await robot_listen()
+
+    await robot_say("How many months since diagnosis?")
+    diagnosis_time = await robot_listen()
+
+    await robot_say("Pain due to present disease? 1 yes, 2 no, 3 uncertain")
+    disease_pain = await robot_listen()
+
+    await robot_say("Was pain a symptom at diagnosis? 1 yes, 2 no, 3 uncertain")
+    pain_symptom = await robot_listen()
+
+    await robot_say("Surgery in the past month? 1 yes, 2 no")
+    surgery = await robot_listen()
+
+    if surgery == "1":
+        await robot_say("What kind of surgery?")
+        surgery_type = await robot_listen()
+    else:
+        surgery_type = ""
+
+    await robot_say("Experienced pain other than minor types last week? 1 yes, 2 no")
+    other_pain = await robot_listen()
+
+    await robot_say("Taken pain medication in the last 7 days? 1 yes, 2 no")
+    pain_med_week = await robot_listen()
+
+    await robot_say("Do you need daily pain medication? 1 yes, 2 no")
+    pain_med_daily = await robot_listen()
+
+    store_demographics(
+        patient_id,
+        {
+            "date": date,
+            "name_last": name_last,
+            "name_first": name_first,
+            "name_middle": name_middle,
+            "phone": phone,
+            "sex": sex,
+            "dob": dob,
+            "marital_status": marital_status,
+            "education": education,
+            "degree": degree,
+            "occupation": occupation,
+            "spouse_occupation": spouse_occupation,
+            "job_status": job_status,
+            "diagnosis_time": diagnosis_time,
+            "disease_pain": disease_pain,
+            "pain_symptom": pain_symptom,
+            "surgery": surgery,
+            "surgery_type": surgery_type,
+            "other_pain": other_pain,
+            "pain_med_week": pain_med_week,
+            "pain_med_daily": pain_med_daily,
+        },
+    )
 
     return patient_id
 
@@ -123,7 +191,9 @@ async def run_all_assessments(patient_id: str):
     await BeckDepression.run_beck_depression_inventory()
 
 async def main():
-    patient_id = collect_demographics()
+    patient_id = await collect_demographics()
+    if not patient_id:
+        return
     await run_all_assessments(patient_id)
     print("\n✅ All assessments completed.")
 
