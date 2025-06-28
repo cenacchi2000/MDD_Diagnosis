@@ -1,4 +1,5 @@
 # Pittsburgh Sleep Quality Index (PSQI) implementation script
+
 import asyncio
 import datetime
 import os
@@ -6,10 +7,28 @@ import sys
 import uuid
 from typing import Literal
 
-
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
-from speech_utils import robot_say, robot_listen
+
+async def robot_say(text: str) -> None:
+    """Speak through Ameca with console fallback."""
+    print(f"[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
+
+
+async def robot_listen() -> str:
+    """Return the next spoken utterance."""
+    try:
+        evt = await system.wait_for_event("speech_recognized")
+        if isinstance(evt, dict):
+            return evt.get("text", "").strip()
+    except Exception:
+        pass
+    return ""
+
 
 
 
@@ -17,11 +36,13 @@ from speech_utils import robot_say, robot_listen
 def get_timestamp():
     return datetime.datetime.now().isoformat()
 
+
 def get_patient_id():
     pid = os.environ.get("patient_id")
     if not pid:
         pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
+
 
 # Map responses to scores as per PSQI guidance
 frequency_score = {

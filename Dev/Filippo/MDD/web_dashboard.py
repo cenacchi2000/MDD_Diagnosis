@@ -20,6 +20,7 @@ def get_all_patient_ids(conn, tables):
         return []
     cur = conn.cursor()
 
+    
     union_query = " UNION ".join([f"SELECT patient_id FROM {t}" for t in tables])
     cur.execute(f"SELECT DISTINCT patient_id FROM ({union_query}) AS ids")
     return [str(row[0]) for row in cur.fetchall() if row[0] is not None]
@@ -49,6 +50,7 @@ def get_data_for_table(patient_id, conn, table_name):
 
 
 
+  
 INDEX_TEMPLATE = """<!doctype html>
 <html lang='en'>
 <head>
@@ -190,3 +192,5 @@ def run(port: int = 8000) -> None:
 if __name__ == '__main__':
     run()
 
+    
+   

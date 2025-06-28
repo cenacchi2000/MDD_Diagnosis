@@ -6,14 +6,17 @@ Questionnaire results are collected by `Dev/Filippo/MDD/http_server.py`.  The
 server relies only on the Python standard library and stores incoming data in
 `patient_responses.db`.
 
-1. Launch the server:
+1. Launch the server on your robot or local PC:
+
 
    ```bash
    python Dev/Filippo/MDD/http_server.py
    ```
 
-   The application listens on port `5000` and creates the SQLite database if it
-   does not already exist.
+
+   It listens on port `5000` and automatically creates `patient_responses.db` if
+   the file does not exist.
+
 
 ## Configuring `SERVER_URL`
 
@@ -27,14 +30,12 @@ export SERVER_URL="http://<server-ip>:5000/store"
 ```
 
 
-
 Replace `<server-ip>` with the host running `http_server.py`.
 
 ## Verifying stored data
 
 After completing one or more questionnaires, check that the answers were
 recorded:
-
 
 
 ```bash
@@ -64,7 +65,6 @@ questionnaire independently you can set the environment variable `patient_id`
 before execution.
 
 ## Web dashboard
-
 
 
 You can view interactive charts of questionnaire results through a small

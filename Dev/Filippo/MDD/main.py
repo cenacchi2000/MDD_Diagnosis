@@ -7,7 +7,25 @@ import sqlite3
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
-from speech_utils import robot_say, robot_listen
+
+async def robot_say(text: str) -> None:
+    """Speak through Ameca with console fallback."""
+    print(f"[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
+
+
+async def robot_listen() -> str:
+    """Return the next spoken utterance."""
+    try:
+        evt = await system.wait_for_event("speech_recognized")
+        if isinstance(evt, dict):
+            return evt.get("text", "").strip()
+    except Exception:
+        pass
+    return ""
 import datetime
 
 import BeckDepression
@@ -34,7 +52,6 @@ async def listen_clean() -> str:
     """Return normalized speech input with digits."""
     ans = (await robot_listen()).lower()
     return DIGIT_WORDS.get(ans, ans)
-
 
 
 
