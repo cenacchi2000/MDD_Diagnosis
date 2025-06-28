@@ -1,35 +1,27 @@
 # Central Sensitization Inventory (CSI) and Worksheet Script
 import asyncio
 import datetime
-from remote_storage import send_to_server
-import uuid
 import os
+import sys
+import uuid
+
+sys.path.append(os.path.dirname(__file__))
+from remote_storage import send_to_server
+from speech_utils import robot_say, robot_listen
 
 
 
 
 def get_patient_id() -> str:
-    """Retrieve patient ID from the environment or prompt the user."""
+    """Retrieve patient ID from the environment or auto-generate."""
     pid = os.environ.get("patient_id")
     if not pid:
-        pid = input("Enter patient identifier (or press Enter to generate one): ").strip()
-        if not pid:
-            pid = f"PAT-{uuid.uuid4().hex[:8]}"
-            print(f"Generated Patient ID: {pid}")
+        pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
 
 def timestamp():
     return datetime.datetime.now().isoformat()
 
-async def robot_say(text):
-    print(f"\n[Ameca]: {text}")
-    try:
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
-
-async def robot_listen():
-    return input("Your response: ").strip()
 
 csi_questions = [
     "I feel tired and unrefreshed when I wake from sleeping.",

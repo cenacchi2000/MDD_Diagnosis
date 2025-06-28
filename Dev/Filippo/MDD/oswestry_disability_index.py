@@ -1,7 +1,11 @@
+import os
+import sys
+
+sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
+from speech_utils import robot_say, robot_listen
 import uuid
 import datetime
-import os
 
 
 
@@ -9,25 +13,21 @@ import os
 def get_patient_id() -> str:
     pid = os.environ.get("patient_id")
     if not pid:
-        pid = input("Enter patient identifier (or press enter to generate one): ").strip()
-        if not pid:
-            pid = f"PAT-{uuid.uuid4().hex[:8]}"
-            print(f"Generated Patient ID: {pid}")
+        pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
 
 def get_timestamp():
     return datetime.datetime.now().isoformat()
 
-async def robot_say(text: str):
-    """Speak text via TTS with console fallback."""
-    print(f"[Ameca]: {text}")
-    try:
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
+DIGIT_WORDS = {
+    "zero": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+}
 
-async def robot_listen() -> str:
-    return input("Select the number that best applies (0–5): ").strip()
 
 # Questionnaire structure
 questions = [
@@ -131,15 +131,16 @@ async def run_odi():
     for i, (title, options) in enumerate(questions, start=1):
         await robot_say(f"Q{i}. {title}")
         for idx, opt in enumerate(options):
-            print(f"  [{idx}] {opt}")
+            await robot_say(f"Option {idx}: {opt}")
 
         while True:
-            user_input = await robot_listen()
+            user_input = (await robot_listen()).lower()
+            user_input = DIGIT_WORDS.get(user_input, user_input)
             if user_input.isdigit() and 0 <= int(user_input) < len(options):
                 score = int(user_input)
                 await robot_say("Thank you.")
                 break
-            await robot_say("Invalid input. Please select a number between 0 and 5.")
+            await robot_say("Invalid input. Choose a number from zero to five.")
 
         total_score += score
         send_to_server(

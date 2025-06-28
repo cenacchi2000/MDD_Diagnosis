@@ -1,9 +1,13 @@
 # eq5d5l_assessment.py
+import os
+import sys
+
+sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
+from speech_utils import robot_say, robot_listen
 import uuid
 import datetime
 import asyncio
-import os
 
 
 
@@ -46,27 +50,27 @@ eq5d5l_dimensions = {
     ]
 }
 
-async def robot_say(msg: str):
-    """Speak via TTS with console fallback."""
-    print(f"\n[Ameca]: {msg}")
-    try:
-        system.messaging.post("tts_say", [msg, "eng"])
-    except Exception:
-        pass
-
-async def robot_listen() -> str:
-    return input("Your response: ").strip()
 
 def get_timestamp():
     return datetime.datetime.now().isoformat()
 
+DIGIT_WORDS = {
+    "zero": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+}
+
 async def collect_patient_id():
     pid = os.environ.get("patient_id")
     if not pid:
-        pid = input("Enter patient ID (or press Enter to auto-generate): ").strip()
-        if not pid:
-            pid = f"PAT-{uuid.uuid4().hex[:8]}"
-            print(f"[Info] Generated Patient ID: {pid}")
+        pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
 
 async def run_eq5d5l_questionnaire():
@@ -79,10 +83,11 @@ async def run_eq5d5l_questionnaire():
     for dimension, statements in eq5d5l_dimensions.items():
         await robot_say(f"{dimension} – please select one of the following:")
         for i, statement in enumerate(statements, 1):
-            print(f"  [{i}] {statement}")
+            await robot_say(f"Option {i}: {statement}")
 
         while True:
-            response = await robot_listen()
+            response = (await robot_listen()).lower()
+            response = DIGIT_WORDS.get(response, response)
             if response.isdigit() and 1 <= int(response) <= 5:
                 level = int(response)
                 levels.append(level)
@@ -99,17 +104,18 @@ async def run_eq5d5l_questionnaire():
                 )
                 break
             else:
-                await robot_say("Please enter a number between 1 and 5.")
+                await robot_say("Please answer with a number from one to five.")
 
     await robot_say("Now, rate your health today on a scale from 0 to 100.")
     while True:
-        vas_input = await robot_listen()
+        vas_input = (await robot_listen()).lower()
+        vas_input = DIGIT_WORDS.get(vas_input, vas_input)
         if vas_input.isdigit() and 0 <= int(vas_input) <= 100:
             vas_score = int(vas_input)
             await robot_say("Thank you.")
             break
         else:
-            await robot_say("Enter a valid number between 0 and 100.")
+            await robot_say("Enter a number between zero and one hundred.")
 
     send_to_server(
         'responses_eq5d5l',
