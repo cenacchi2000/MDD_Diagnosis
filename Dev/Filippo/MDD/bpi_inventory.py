@@ -3,7 +3,7 @@
 
 import asyncio
 import datetime
-import sqlite3
+from remote_storage import send_to_server
 import uuid
 import os
 
@@ -18,19 +18,7 @@ def get_patient_id() -> str:
             print(f"Generated Patient ID: {pid}")
     return pid
 
-# Setup shared database
-conn = sqlite3.connect("patient_responses.db")
-cursor = conn.cursor()
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS responses_bpi (
-        patient_id TEXT,
-        timestamp TEXT,
-        question_number INTEGER,
-        question_text TEXT,
-        response TEXT
-    )
-''')
-conn.commit()
+
 
 async def robot_say(text: str):
     print(f"[Ameca]: {text}")
@@ -79,11 +67,14 @@ async def run_bpi():
         await robot_say("Thank you.")
         timestamp = datetime.datetime.now().isoformat()
 
-        cursor.execute('''
-            INSERT INTO responses_bpi (patient_id, timestamp, question_number, question_text, response)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (patient_id, timestamp, i + 1, question, response))
-        conn.commit()
+        send_to_server(
+            'responses_bpi',
+            patient_id=patient_id,
+            timestamp=timestamp,
+            question_number=i + 1,
+            question_text=question,
+            response=response,
+        )
 
         print(f"[Saved] Question {i + 1}: {response}")
 

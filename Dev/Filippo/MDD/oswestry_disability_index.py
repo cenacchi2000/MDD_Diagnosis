@@ -1,24 +1,9 @@
-import sqlite3
+from remote_storage import send_to_server
 import uuid
 import datetime
 import os
 
-# Connect to or create database
-conn = sqlite3.connect("patient_responses.db")
-cursor = conn.cursor()
 
-# Create ODI table
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS responses_odi (
-        patient_id TEXT,
-        timestamp TEXT,
-        question_number INTEGER,
-        question_text TEXT,
-        selected_option TEXT,
-        score INTEGER
-    )
-''')
-conn.commit()
 
 # Generate patient ID or accept user-defined one
 def get_patient_id() -> str:
@@ -157,11 +142,15 @@ async def run_odi():
             await robot_say("Invalid input. Please select a number between 0 and 5.")
 
         total_score += score
-        cursor.execute('''
-            INSERT INTO responses_odi (patient_id, timestamp, question_number, question_text, selected_option, score)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (patient_id, get_timestamp(), i, title, options[score], score))
-        conn.commit()
+        send_to_server(
+            'responses_odi',
+            patient_id=patient_id,
+            timestamp=get_timestamp(),
+            question_number=i,
+            question_text=title,
+            selected_option=options[score],
+            score=score,
+        )
 
     await robot_say(f"ODI Complete. Total Score: {total_score} / 50")
     level = interpret_score(total_score)

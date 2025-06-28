@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-import sqlite3
+from remote_storage import send_to_server
 import datetime
 
 import BeckDepression
@@ -141,39 +141,11 @@ async def collect_demographics():
     return patient_id
 
 def store_demographics(patient_id, data):
-    conn = sqlite3.connect("patient_responses.db")
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS patient_demographics (
-            patient_id TEXT PRIMARY KEY,
-            date TEXT,
-            name_last TEXT,
-            name_first TEXT,
-            name_middle TEXT,
-            phone TEXT,
-            sex TEXT,
-            dob TEXT,
-            marital_status TEXT,
-            education TEXT,
-            degree TEXT,
-            occupation TEXT,
-            spouse_occupation TEXT,
-            job_status TEXT,
-            diagnosis_time TEXT,
-            disease_pain TEXT,
-            pain_symptom TEXT,
-            surgery TEXT,
-            surgery_type TEXT,
-            other_pain TEXT,
-            pain_med_week TEXT,
-            pain_med_daily TEXT
-        )
-    ''')
-    cursor.execute('''
-        INSERT OR REPLACE INTO patient_demographics VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (patient_id, *data.values()))
-    conn.commit()
-    conn.close()
+    send_to_server(
+        'patient_demographics',
+        patient_id=patient_id,
+        **data,
+    )
 
 async def run_all_assessments(patient_id: str):
     """Run all questionnaires sequentially."""

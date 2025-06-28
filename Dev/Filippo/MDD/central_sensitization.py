@@ -1,38 +1,11 @@
 # Central Sensitization Inventory (CSI) and Worksheet Script
 import asyncio
 import datetime
-import sqlite3
+from remote_storage import send_to_server
 import uuid
 import os
 
-# Initialize DB connection
-conn = sqlite3.connect("patient_responses.db")
-cursor = conn.cursor()
 
-# CSI responses
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS responses_csi (
-        patient_id TEXT,
-        timestamp TEXT,
-        question_number INTEGER,
-        question_text TEXT,
-        answer TEXT,
-        score INTEGER
-    )
-''')
-
-# CSI worksheet (Part B)
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS worksheet_csi (
-        patient_id TEXT,
-        timestamp TEXT,
-        condition TEXT,
-        knows_about TEXT,
-        diagnosed TEXT,
-        year_diagnosed TEXT
-    )
-''')
-conn.commit()
 
 
 def get_patient_id() -> str:
@@ -124,10 +97,15 @@ async def run_csi_inventory():
             await robot_say("Invalid answer. Please use: Never, Rarely, Sometimes, Often, Always")
 
         total += score
-        cursor.execute('''
-            INSERT INTO responses_csi VALUES (?, ?, ?, ?, ?, ?)
-        ''', (patient_id, timestamp(), i+1, question, ans.title(), score))
-        conn.commit()
+        send_to_server(
+            'responses_csi',
+            patient_id=patient_id,
+            timestamp=timestamp(),
+            question_number=i + 1,
+            question_text=question,
+            answer=ans.title(),
+            score=score,
+        )
 
     await robot_say(f"Your total CSI score is: {total}")
     if total < 30:
@@ -165,10 +143,15 @@ async def run_csi_worksheet():
             else:
                 year = "N/A"
 
-        cursor.execute('''
-            INSERT INTO worksheet_csi VALUES (?, ?, ?, ?, ?, ?)
-        ''', (patient_id, timestamp(), condition, knows, diagnosed, year))
-        conn.commit()
+        send_to_server(
+            'worksheet_csi',
+            patient_id=patient_id,
+            timestamp=timestamp(),
+            condition=condition,
+            knows_about=knows,
+            diagnosed=diagnosed,
+            year_diagnosed=year,
+        )
 
     await robot_say("Session completed.")
 
