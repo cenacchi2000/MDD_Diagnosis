@@ -7,48 +7,7 @@ import sqlite3
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
-ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
-robot_state = ROBOT_STATE.state
-
-async def robot_say(text: str) -> None:
-    """Speak through Ameca with console fallback."""
-    print(f"[Ameca]: {text}")
-    try:
-        robot_state.last_language_code = "eng"
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
-
-
-async def robot_listen() -> str:
-    """Listen for speech and return the transcript once recognized."""
-    while True:
-        speech_task = asyncio.create_task(
-            system.wait_for_event("speech_recognized")
-        )
-        no_speech_task = asyncio.create_task(
-            system.wait_for_event("no_speech_heard")
-        )
-
-        done, pending = await asyncio.wait(
-            {speech_task, no_speech_task},
-            timeout=10,
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        for task in pending:
-            task.cancel()
-
-        if speech_task in done:
-            try:
-                evt = speech_task.result()
-                if isinstance(evt, dict):
-                    text = evt.get("text", "").strip()
-                    if text:
-                        return text
-            except Exception:
-                pass
-
-        await robot_say("I didn't catch that, please repeat.")
+from speech_helpers import robot_say, robot_listen
 import datetime
 
 import BeckDepression
