@@ -8,6 +8,8 @@ import uuid
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
 
+from speech_utils import robot_say, robot_listen
+
 
 
 # Patient ID setup – use environment variable from main.py if available
@@ -16,6 +18,8 @@ def get_patient_id() -> str:
     if not pid:
         pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
+
+DIGIT_WORDS = {"zero": "0", "one": "1", "two": "2", "three": "3"}
 
 # Categories: d = depression, a = anxiety, s = stress
 questions = [
@@ -44,16 +48,6 @@ questions = [
 
 category_scores = {'d': 0, 'a': 0, 's': 0}
 
-async def robot_say(text):
-    """Speak using TTS with console fallback."""
-    print(f"\n[Ameca]: {text}")
-    try:
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
-
-async def robot_listen():
-    return input("Your answer (0–3): ").strip()
 
 def interpret(score, category):
     score *= 2  # Multiply total by 2 as per DASS21 convention
@@ -82,13 +76,14 @@ async def run_dass21():
     for number, text, category in questions:
         await robot_say(f"Q{number}: {text}")
         while True:
-            response = await robot_listen()
-            if response in ['0', '1', '2', '3']:
+            response = (await robot_listen()).lower()
+            response = DIGIT_WORDS.get(response, response)
+            if response in {'0', '1', '2', '3'}:
                 score = int(response)
                 category_scores[category] += score
                 await robot_say("Thank you.")
                 break
-            await robot_say("Invalid. Enter 0, 1, 2, or 3 only.")
+            await robot_say("Invalid. Please answer zero to three.")
 
         send_to_server(
             'responses_dass21',

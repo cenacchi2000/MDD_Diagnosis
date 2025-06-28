@@ -6,20 +6,13 @@ import sys
 import uuid
 from typing import Literal
 
+
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
+from speech_utils import robot_say, robot_listen
 
 
 
-async def robot_say(text):
-    print(f"\n[Ameca]: {text}")
-    try:
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
-
-async def robot_listen():
-    return input("Your response: ").strip()
 
 def get_timestamp():
     return datetime.datetime.now().isoformat()

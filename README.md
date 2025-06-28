@@ -27,12 +27,14 @@ export SERVER_URL="http://<server-ip>:5000/store"
 ```
 
 
+
 Replace `<server-ip>` with the host running `http_server.py`.
 
 ## Verifying stored data
 
 After completing one or more questionnaires, check that the answers were
 recorded:
+
 
 
 ```bash
@@ -44,6 +46,14 @@ sqlite3 patient_responses.db "SELECT * FROM patient_demographics LIMIT 5;"
 The first command shows all tables created by the server.  You can then run
 standard SQLite queries to inspect the contents and confirm that data was saved.
 
+## Speech interaction
+
+All questionnaires rely on the robot's speech recogniser.  Questions and
+answer options are spoken aloud with text-to-speech and replies are captured
+from the `speech_recognized` event stream, so there is no console input during
+assessments.
+
+
 ## Patient identifiers
 
 When running `main.py` the system asks for the patient's first and last name and
@@ -54,6 +64,7 @@ questionnaire independently you can set the environment variable `patient_id`
 before execution.
 
 ## Web dashboard
+
 
 
 You can view interactive charts of questionnaire results through a small

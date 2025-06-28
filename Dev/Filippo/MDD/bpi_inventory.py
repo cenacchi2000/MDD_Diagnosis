@@ -10,6 +10,9 @@ import uuid
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
 
+from speech_utils import robot_say, robot_listen
+
+
 
 def get_patient_id() -> str:
     """Retrieve patient ID from environment or auto-generate."""
@@ -20,15 +23,6 @@ def get_patient_id() -> str:
 
 
 
-async def robot_say(text: str):
-    print(f"[Ameca]: {text}")
-    try:
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
-
-async def robot_listen() -> str:
-    return input("Your response: ").strip()
 
 # Long-form BPI Questions — simplified text w/ freeform or numeric entry
 bpi_questions = [
@@ -76,7 +70,6 @@ async def run_bpi():
             response=response,
         )
 
-        print(f"[Saved] Question {i + 1}: {response}")
 
     await robot_say(f"All responses saved for Patient ID: {patient_id}")
 

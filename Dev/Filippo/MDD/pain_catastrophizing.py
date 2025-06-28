@@ -5,6 +5,7 @@ import sys
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
+from speech_utils import robot_say, robot_listen
 import datetime
 import uuid
 import asyncio
@@ -46,15 +47,8 @@ rating_scale = {
 def current_timestamp():
     return datetime.datetime.now().isoformat()
 
-async def robot_say(text):
-    print(f"\n[Ameca]: {text}")
-    try:
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
+DIGIT_WORDS = {"zero": "0", "one": "1", "two": "2", "three": "3", "four": "4"}
 
-async def robot_listen():
-    return input("Your response (0-4): ").strip()
 
 async def run_pcs():
     patient_id = get_patient_id()
@@ -66,12 +60,13 @@ async def run_pcs():
         await robot_say(f"Q{i+1}: {question}")
 
         while True:
-            response = await robot_listen()
+            response = (await robot_listen()).lower()
+            response = DIGIT_WORDS.get(response, response)
             if response in rating_scale:
                 score = int(response)
                 await robot_say("Thank you.")
                 break
-            await robot_say("Invalid response. Please enter a number from 0 to 4.")
+            await robot_say("Invalid response. Please answer zero to four.")
 
         total_score += score
         send_to_server(
