@@ -1,9 +1,12 @@
 # DASS-21 Questionnaire Script with Automatic Scoring and SQLite Storage
 import asyncio
 import datetime
-from remote_storage import send_to_server
-import uuid
 import os
+import sys
+import uuid
+
+sys.path.append(os.path.dirname(__file__))
+from remote_storage import send_to_server
 
 
 
