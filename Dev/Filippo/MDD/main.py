@@ -1,7 +1,5 @@
 import asyncio
 import uuid
-import subprocess
-import datetime
 import sqlite3
 
 def generate_patient_id():
