@@ -1,5 +1,4 @@
 import sqlite3
-import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
@@ -19,20 +18,40 @@ def get_all_patient_ids(conn, tables):
     return [str(row[0]) for row in cursor.fetchall()]
 
 def plot_data_for_table(patient_id, conn, table_name):
-    query = f"SELECT question_title, score FROM {table_name} WHERE patient_id = ?"
-    df = pd.read_sql_query(query, conn, params=(patient_id,))
-    
+    """Return a matplotlib figure for the given patient's data."""
+    cur = conn.cursor()
+    cols = [row[1] for row in cur.execute(f"PRAGMA table_info({table_name})")]
+    if "score" not in cols:
+        return None
+
+    q_col = None
+    for possible in ("question_title", "question_text", "dimension"):
+        if possible in cols:
+            q_col = possible
+            break
+    if not q_col:
+        return None
+
+    cur.execute(
+        f"SELECT {q_col}, score FROM {table_name} WHERE patient_id = ?",
+        (patient_id,),
+    )
+    rows = cur.fetchall()
+
     fig, ax = plt.subplots(figsize=(9, 5))
-    if df.empty:
-        ax.text(0.5, 0.5, f"No data found for {table_name}", ha='center', va='center')
+    if not rows:
+        ax.text(0.5, 0.5, f"No data found for {table_name}", ha="center", va="center")
+        ax.axis("off")
         return fig
 
-    df['question_title'] = df['question_title'].str[:40]  # Trim long titles
-    ax.bar(df['question_title'], df['score'], color='skyblue')
+    labels = [str(r[0])[:40] for r in rows]
+    scores = [r[1] for r in rows]
+
+    ax.bar(labels, scores, color="skyblue")
     ax.set_title(table_name.replace("responses_", "").upper())
     ax.set_ylabel("Score")
-    ax.tick_params(axis='x', labelrotation=90)
-    ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+    ax.tick_params(axis="x", labelrotation=90)
+    ax.grid(True, axis="y", linestyle="--", alpha=0.7)
     plt.tight_layout()
     return fig
 
@@ -62,6 +81,9 @@ def launch_gui():
             notebook.add(frame, text=table.replace("responses_", "").upper())
 
             fig = plot_data_for_table(selected_id.get(), conn, table)
+            if fig is None:
+                ttk.Label(frame, text="No numeric data available").pack(pady=20)
+                continue
             canvas = FigureCanvasTkAgg(fig, master=frame)
             canvas.draw()
             canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
