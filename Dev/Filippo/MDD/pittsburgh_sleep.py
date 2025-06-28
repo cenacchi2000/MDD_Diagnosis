@@ -6,6 +6,7 @@ import sys
 import uuid
 from typing import Literal
 
+
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
 from speech_utils import robot_say, robot_listen

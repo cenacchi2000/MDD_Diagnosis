@@ -12,6 +12,7 @@ from speech_utils import robot_say, robot_listen
 
 
 
+
 def get_patient_id() -> str:
     """Retrieve patient ID from the environment or auto-generate."""
     pid = os.environ.get("patient_id")
