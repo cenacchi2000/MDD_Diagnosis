@@ -10,46 +10,9 @@ from remote_storage import send_to_server
 ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
 robot_state = ROBOT_STATE.state
 
-async def robot_say(text: str) -> None:
-    """Speak through Ameca with console fallback."""
-    print(f"[Ameca]: {text}")
-    try:
-        robot_state.last_language_code = "eng"
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
+from speech_utils import robot_say, robot_listen
 
-
-async def robot_listen() -> str:
-    """Listen for speech and return the transcript once recognized."""
-    while True:
-        speech_task = asyncio.create_task(
-            system.wait_for_event("speech_recognized")
-        )
-        no_speech_task = asyncio.create_task(
-            system.wait_for_event("no_speech_heard")
-        )
-
-        done, pending = await asyncio.wait(
-            {speech_task, no_speech_task},
-            timeout=10,
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        for task in pending:
-            task.cancel()
-
-        if speech_task in done:
-            try:
-                evt = speech_task.result()
-                if isinstance(evt, dict):
-                    text = evt.get("text", "").strip()
-                    if text:
-                        return text
-            except Exception:
-                pass
-
-        await robot_say("I didn't catch that, please repeat.")
-import datetime
+from datetime import date as dt_date
 
 import BeckDepression
 import bpi_inventory
@@ -118,7 +81,7 @@ async def collect_demographics():
         patient_id = generate_patient_id()
     new_patient = env_id is None and existing is None
 
-    date = datetime.date.today().strftime("%d/%m/%Y")
+    current_date = dt_date.today().strftime("%d/%m/%Y")
 
     await robot_say(
         f"Hi {name_first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
@@ -191,7 +154,7 @@ async def collect_demographics():
         store_demographics(
             patient_id,
             {
-                "date": date,
+                "date": current_date,
                 "name_last": name_last,
                 "name_first": name_first,
                 "name_middle": name_middle,
