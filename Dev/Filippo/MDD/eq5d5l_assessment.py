@@ -1,149 +1,12 @@
-# eq5d5l_assessment.py
-
+import asyncio
+import datetime
 import os
 import sys
+import uuid
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
-
-async def robot_say(text: str) -> None:
-    """Speak through Ameca with console fallback."""
-    print(f"[Ameca]: {text}")
-    try:
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
-
-
-async def robot_listen() -> str:
-    """Listen for speech and return the transcript once recognized."""
-    while True:
-        speech_task = asyncio.create_task(
-            system.wait_for_event("speech_recognized", timeout=10)
-        )
-        no_speech_task = asyncio.create_task(
-            system.wait_for_event("no_speech_heard", timeout=10)
-        )
-
-        done, pending = await asyncio.wait(
-            {speech_task, no_speech_task},
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        for task in pending:
-            task.cancel()
-
-        if speech_task in done:
-            try:
-                evt = speech_task.result()
-                if isinstance(evt, dict):
-                    text = evt.get("text", "").strip()
-                    if text:
-                        return text
-            except Exception:
-                pass
-
-        await robot_say("I didn't catch that, please repeat.")
-import uuid
-import datetime
-import asyncio
-
-
-import os
-import sys
-
-sys.path.append(os.path.dirname(__file__))
-from remote_storage import send_to_server
-
-async def robot_say(text: str) -> None:
-    """Speak through Ameca with console fallback."""
-    print(f"[Ameca]: {text}")
-    try:
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
-
-
-async def robot_listen() -> str:
-    """Listen for speech and return the transcript once recognized."""
-    while True:
-        speech_task = asyncio.create_task(
-            system.wait_for_event("speech_recognized", timeout=10)
-        )
-        no_speech_task = asyncio.create_task(
-            system.wait_for_event("no_speech_heard", timeout=10)
-        )
-
-        done, pending = await asyncio.wait(
-            {speech_task, no_speech_task},
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        for task in pending:
-            task.cancel()
-
-        if speech_task in done:
-            try:
-                evt = speech_task.result()
-                if isinstance(evt, dict):
-                    text = evt.get("text", "").strip()
-                    if text:
-                        return text
-            except Exception:
-                pass
-
-        await robot_say("I didn't catch that, please repeat.")
-import uuid
-import datetime
-import asyncio
-
-
-import os
-import sys
-
-sys.path.append(os.path.dirname(__file__))
-from remote_storage import send_to_server
-
-async def robot_say(text: str) -> None:
-    """Speak through Ameca with console fallback."""
-    print(f"[Ameca]: {text}")
-    try:
-        system.messaging.post("tts_say", [text, "eng"])
-    except Exception:
-        pass
-
-
-async def robot_listen() -> str:
-    """Listen for speech and return the transcript once recognized."""
-    while True:
-        speech_task = asyncio.create_task(
-            system.wait_for_event("speech_recognized", timeout=10)
-        )
-        no_speech_task = asyncio.create_task(
-            system.wait_for_event("no_speech_heard", timeout=10)
-        )
-
-        done, pending = await asyncio.wait(
-            {speech_task, no_speech_task},
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        for task in pending:
-            task.cancel()
-
-        if speech_task in done:
-            try:
-                evt = speech_task.result()
-                if isinstance(evt, dict):
-                    text = evt.get("text", "").strip()
-                    if text:
-                        return text
-            except Exception:
-                pass
-
-        await robot_say("I didn't catch that, please repeat.")
-import uuid
-import datetime
-import asyncio
-
-
+from speech_utils import robot_say, robot_listen
 
 # EQ-5D-5L dimension descriptions
 eq5d5l_dimensions = {
@@ -152,38 +15,37 @@ eq5d5l_dimensions = {
         "I have slight problems in walking about",
         "I have moderate problems in walking about",
         "I have severe problems in walking about",
-        "I am unable to walk about"
+        "I am unable to walk about",
     ],
     "Self-Care": [
         "I have no problems washing or dressing myself",
         "I have slight problems washing or dressing myself",
         "I have moderate problems washing or dressing myself",
         "I have severe problems washing or dressing myself",
-        "I am unable to wash or dress myself"
+        "I am unable to wash or dress myself",
     ],
     "Usual Activities": [
         "I have no problems doing my usual activities",
         "I have slight problems doing my usual activities",
         "I have moderate problems doing my usual activities",
         "I have severe problems doing my usual activities",
-        "I am unable to do my usual activities"
+        "I am unable to do my usual activities",
     ],
     "Pain/Discomfort": [
         "I have no pain or discomfort",
         "I have slight pain or discomfort",
         "I have moderate pain or discomfort",
         "I have severe pain or discomfort",
-        "I have extreme pain or discomfort"
+        "I have extreme pain or discomfort",
     ],
     "Anxiety/Depression": [
         "I am not anxious or depressed",
         "I am slightly anxious or depressed",
         "I am moderately anxious or depressed",
         "I am severely anxious or depressed",
-        "I am extremely anxious or depressed"
-    ]
+        "I am extremely anxious or depressed",
+    ],
 }
-
 
 def get_timestamp():
     return datetime.datetime.now().isoformat()
@@ -201,13 +63,11 @@ DIGIT_WORDS = {
     "nine": "9",
 }
 
-
 async def collect_patient_id():
     pid = os.environ.get("patient_id")
     if not pid:
         pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
-
 
 async def run_eq5d5l_questionnaire():
     patient_id = await collect_patient_id()
@@ -215,7 +75,6 @@ async def run_eq5d5l_questionnaire():
     health_state_code = ""
 
     await robot_say("We will begin the EQ-5D-5L assessment. For each question, respond with 1 to 5.")
-
 
     for dimension, statements in eq5d5l_dimensions.items():
         await robot_say(f"{dimension} – please select one of the following:")
@@ -264,17 +123,14 @@ async def run_eq5d5l_questionnaire():
         vas_score=vas_score,
     )
 
-
     await robot_say(f"✅ EQ-5D-5L complete. Your health state code is: {health_state_code}")
-
     await robot_say(f"Your self-rated health (VAS) score is: {vas_score}")
 
-    # Optional: placeholder for utility scoring (requires national dataset e.g. UK, AU)
     utility = calculate_placeholder_utility(levels)
     await robot_say(f"Estimated utility index (placeholder): {utility:.3f}")
 
+
 def calculate_placeholder_utility(levels):
-    # Simple pseudo-utility calculator (for demo purposes)
     decrement = sum((level - 1) * 0.1 for level in levels)
     utility = max(1.0 - decrement, 0.0)
     return utility
