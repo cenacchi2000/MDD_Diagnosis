@@ -29,6 +29,16 @@ cursor.execute('''
 ''')
 conn.commit()
 
+async def robot_say(text: str):
+    print(f"[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
+
+async def robot_listen() -> str:
+    return input("Your response: ").strip()
+
 # Long-form BPI Questions — simplified text w/ freeform or numeric entry
 bpi_questions = [
     "1. Rate your pain at its worst in the last 24 hours (0 = No pain, 10 = Worst imaginable):",
@@ -60,8 +70,9 @@ bpi_questions = [
 # Auto-adjust question numbering (we split compound questions)
 async def run_bpi():
     for i, question in enumerate(bpi_questions):
-        print(f"\n{question}")
-        response = input("Your response: ").strip()
+        await robot_say(f"{question}")
+        response = await robot_listen()
+        await robot_say("Thank you.")
         timestamp = datetime.datetime.now().isoformat()
 
         cursor.execute('''
@@ -72,7 +83,7 @@ async def run_bpi():
 
         print(f"[Saved] Question {i + 1}: {response}")
 
-    print(f"\n✅ All responses saved for Patient ID: {patient_id}")
+    await robot_say(f"All responses saved for Patient ID: {patient_id}")
 
 if __name__ == "__main__":
     asyncio.run(run_bpi())

@@ -47,6 +47,10 @@ def timestamp():
 
 async def robot_say(text):
     print(f"\n[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
 
 async def robot_listen():
     return input("Your response: ").strip()
@@ -111,6 +115,7 @@ async def run_csi_inventory():
             ans = (await robot_listen()).lower()
             if ans in score_map:
                 score = score_map[ans]
+                await robot_say("Thank you.")
                 break
             await robot_say("Invalid answer. Please use: Never, Rarely, Sometimes, Often, Always")
 
@@ -138,6 +143,7 @@ async def run_csi_worksheet():
     for condition in csi_worksheet:
         await robot_say(f"Are you familiar with {condition}? (yes/no)")
         knows = (await robot_listen()).lower()
+        await robot_say("Thank you.")
         if knows == "no":
             await robot_say(f"Explaining {condition}...")
             await robot_say(f"{condition} is a health condition potentially related to chronic pain.")
@@ -146,9 +152,11 @@ async def run_csi_worksheet():
         else:
             await robot_say(f"Have you been diagnosed with {condition}? (yes/no)")
             diagnosed = (await robot_listen()).lower()
+            await robot_say("Thank you.")
             if diagnosed == "yes":
                 await robot_say("In what year were you diagnosed?")
                 year = await robot_listen()
+                await robot_say("Thank you.")
             else:
                 year = "N/A"
 

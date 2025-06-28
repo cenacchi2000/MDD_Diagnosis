@@ -30,7 +30,12 @@ if not patient_id:
         print(f"Generated Patient ID: {patient_id}")
 
 async def robot_say(text: str):
+    """Speak through TTS and print as fallback."""
     print(f"[Ameca says]: {text}\n")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
 
 async def robot_listen() -> str:
     return input("Your response (0, 1, 2, 3): ").strip()
@@ -81,6 +86,7 @@ async def run_beck_depression_inventory():
             if response in ["0", "1", "2", "3"]:
                 score = int(response)
                 valid = True
+                await robot_say("Thank you.")
             else:
                 await robot_say("Please enter a valid response: 0, 1, 2, or 3.")
 

@@ -31,6 +31,17 @@ if not patient_id:
 def get_timestamp():
     return datetime.datetime.now().isoformat()
 
+async def robot_say(text: str):
+    """Speak text via TTS with console fallback."""
+    print(f"[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
+
+async def robot_listen() -> str:
+    return input("Select the number that best applies (0–5): ").strip()
+
 # Questionnaire structure
 questions = [
     ("PAIN INTENSITY", [
@@ -127,32 +138,32 @@ def interpret_score(total_score):
     else:
         return "Completely disabled"
 
-# Run questionnaire
-total_score = 0
-for i, (title, options) in enumerate(questions, start=1):
-    print(f"\nQ{i}. {title}")
-    for idx, opt in enumerate(options):
-        print(f"  [{idx}] {opt}")
+async def run_odi():
+    total_score = 0
+    for i, (title, options) in enumerate(questions, start=1):
+        await robot_say(f"Q{i}. {title}")
+        for idx, opt in enumerate(options):
+            print(f"  [{idx}] {opt}")
 
-    while True:
-        try:
-            user_input = int(input("Select the number that best applies (0–5): ").strip())
-            if 0 <= user_input < len(options):
+        while True:
+            user_input = await robot_listen()
+            if user_input.isdigit() and 0 <= int(user_input) < len(options):
+                score = int(user_input)
+                await robot_say("Thank you.")
                 break
-        except ValueError:
-            pass
-        print("Invalid input. Please select a number between 0 and 5.")
+            await robot_say("Invalid input. Please select a number between 0 and 5.")
 
-    score = user_input
-    total_score += score
+        total_score += score
+        cursor.execute('''
+            INSERT INTO responses_odi (patient_id, timestamp, question_number, question_text, selected_option, score)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (patient_id, get_timestamp(), i, title, options[score], score))
+        conn.commit()
 
-    cursor.execute('''
-        INSERT INTO responses_odi (patient_id, timestamp, question_number, question_text, selected_option, score)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (patient_id, get_timestamp(), i, title, options[score], score))
-    conn.commit()
+    await robot_say(f"ODI Complete. Total Score: {total_score} / 50")
+    level = interpret_score(total_score)
+    await robot_say(f"Disability Level: {level}")
 
-# Final analysis
-print(f"\n ODI Complete. Total Score: {total_score} / 50")
-level = interpret_score(total_score)
-print(f" Disability Level: {level}")
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(run_odi())

@@ -57,7 +57,12 @@ questions = [
 category_scores = {'d': 0, 'a': 0, 's': 0}
 
 async def robot_say(text):
+    """Speak using TTS with console fallback."""
     print(f"\n[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
 
 async def robot_listen():
     return input("Your answer (0–3): ").strip()
@@ -92,6 +97,7 @@ async def run_dass21():
             if response in ['0', '1', '2', '3']:
                 score = int(response)
                 category_scores[category] += score
+                await robot_say("Thank you.")
                 break
             await robot_say("Invalid. Enter 0, 1, 2, or 3 only.")
 
