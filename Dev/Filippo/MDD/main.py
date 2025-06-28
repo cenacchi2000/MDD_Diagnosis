@@ -24,14 +24,15 @@ async def robot_listen() -> str:
     """Listen for speech and return the transcript once recognized."""
     while True:
         speech_task = asyncio.create_task(
-            system.wait_for_event("speech_recognized", timeout=10)
+            system.wait_for_event("speech_recognized")
         )
         no_speech_task = asyncio.create_task(
-            system.wait_for_event("no_speech_heard", timeout=10)
+            system.wait_for_event("no_speech_heard")
         )
 
         done, pending = await asyncio.wait(
             {speech_task, no_speech_task},
+            timeout=10,
             return_when=asyncio.FIRST_COMPLETED,
         )
         for task in pending:
