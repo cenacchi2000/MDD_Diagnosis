@@ -11,28 +11,14 @@ async def robot_say(text: str) -> None:
 async def robot_listen() -> str:
     """Return the next transcribed utterance from the speech recognizer."""
     while True:
-        speech_task = asyncio.create_task(
-            system.wait_for_event("speech_recognized", timeout=10)
-        )
-        no_speech_task = asyncio.create_task(
-            system.wait_for_event("no_speech_heard", timeout=10)
-        )
+        try:
+            evt = await system.wait_for_event("speech_recognized")
+        except Exception:
+            evt = None
 
-        done, pending = await asyncio.wait(
-            {speech_task, no_speech_task},
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        for task in pending:
-            task.cancel()
+        if isinstance(evt, dict):
+            text = evt.get("text", "").strip()
+            if text:
+                return text
 
-        if speech_task in done:
-            try:
-                evt = speech_task.result()
-                if isinstance(evt, dict):
-                    text = evt.get("text", "").strip()
-                    if text:
-                        return text
-            except Exception:
-                pass
-
-        print("[Ameca]: I didn't catch that, please repeat.")
+        await robot_say("I didn't catch that, please repeat.")
