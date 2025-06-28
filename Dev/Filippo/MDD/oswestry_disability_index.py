@@ -1,6 +1,7 @@
 import sqlite3
 import uuid
 import datetime
+import os
 
 # Connect to or create database
 conn = sqlite3.connect("patient_responses.db")
@@ -20,10 +21,12 @@ cursor.execute('''
 conn.commit()
 
 # Generate patient ID or accept user-defined one
-patient_id = input("Enter patient identifier (or press enter to generate one): ").strip()
+patient_id = os.environ.get("patient_id")
 if not patient_id:
-    patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
-    print(f"Generated Patient ID: {patient_id}")
+    patient_id = input("Enter patient identifier (or press enter to generate one): ").strip()
+    if not patient_id:
+        patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
+        print(f"Generated Patient ID: {patient_id}")
 
 def get_timestamp():
     return datetime.datetime.now().isoformat()

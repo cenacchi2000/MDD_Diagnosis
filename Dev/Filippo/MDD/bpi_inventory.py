@@ -5,12 +5,15 @@ import asyncio
 import datetime
 import sqlite3
 import uuid
+import os
 
-# Generate patient ID
-patient_id = input("Enter patient identifier (or press enter to generate one): ").strip()
+# Generate patient ID, preferring environment variable from main.py
+patient_id = os.environ.get("patient_id")
 if not patient_id:
-    patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
-    print(f"Generated Patient ID: {patient_id}")
+    patient_id = input("Enter patient identifier (or press enter to generate one): ").strip()
+    if not patient_id:
+        patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
+        print(f"Generated Patient ID: {patient_id}")
 
 # Setup shared database
 conn = sqlite3.connect("patient_responses.db")
