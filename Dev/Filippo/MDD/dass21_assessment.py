@@ -22,12 +22,14 @@ cursor.execute('''
 conn.commit()
 
 # Patient ID setup – use environment variable from main.py if available
-patient_id = os.environ.get("patient_id")
-if not patient_id:
-    patient_id = input("Enter patient identifier (or press Enter to auto-generate): ").strip()
-    if not patient_id:
-        patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
-        print(f"Generated Patient ID: {patient_id}")
+def get_patient_id() -> str:
+    pid = os.environ.get("patient_id")
+    if not pid:
+        pid = input("Enter patient identifier (or press Enter to auto-generate): ").strip()
+        if not pid:
+            pid = f"PAT-{uuid.uuid4().hex[:8]}"
+            print(f"Generated Patient ID: {pid}")
+    return pid
 
 # Categories: d = depression, a = anxiety, s = stress
 questions = [
@@ -89,6 +91,7 @@ def interpret(score, category):
         return score, "Extremely Severe"
 
 async def run_dass21():
+    patient_id = get_patient_id()
     await robot_say("Welcome to the DASS-21 screening. Please answer 0 (Did not apply) to 3 (Most of the time).")
     for number, text, category in questions:
         await robot_say(f"Q{number}: {text}")

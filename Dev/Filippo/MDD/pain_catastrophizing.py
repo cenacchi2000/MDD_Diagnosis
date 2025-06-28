@@ -23,12 +23,14 @@ cursor.execute('''
 conn.commit()
 
 # Patient ID handling
-patient_id = os.environ.get("patient_id")
-if not patient_id:
-    patient_id = input("Enter patient identifier (or press Enter to generate one): ").strip()
-    if not patient_id:
-        patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
-        print(f"Generated Patient ID: {patient_id}")
+def get_patient_id() -> str:
+    pid = os.environ.get("patient_id")
+    if not pid:
+        pid = input("Enter patient identifier (or press Enter to generate one): ").strip()
+        if not pid:
+            pid = f"PAT-{uuid.uuid4().hex[:8]}"
+            print(f"Generated Patient ID: {pid}")
+    return pid
 
 # PCS questions
 pcs_questions = [
@@ -69,6 +71,7 @@ async def robot_listen():
     return input("Your response (0-4): ").strip()
 
 async def run_pcs():
+    patient_id = get_patient_id()
     total_score = 0
     await robot_say("Welcome to the Pain Catastrophizing Scale questionnaire. Please answer each item based on how you feel when you're in pain.")
     await robot_say("The scale is: 0 = Not at all, 1 = Slight degree, 2 = Moderate degree, 3 = Great degree, 4 = All the time.")

@@ -7,13 +7,16 @@ import sqlite3
 import uuid
 import os
 
-# Generate patient ID, preferring environment variable from main.py
-patient_id = os.environ.get("patient_id")
-if not patient_id:
-    patient_id = input("Enter patient identifier (or press enter to generate one): ").strip()
-    if not patient_id:
-        patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
-        print(f"Generated Patient ID: {patient_id}")
+
+def get_patient_id() -> str:
+    """Retrieve patient ID from environment or prompt the user."""
+    pid = os.environ.get("patient_id")
+    if not pid:
+        pid = input("Enter patient identifier (or press enter to generate one): ").strip()
+        if not pid:
+            pid = f"PAT-{uuid.uuid4().hex[:8]}"
+            print(f"Generated Patient ID: {pid}")
+    return pid
 
 # Setup shared database
 conn = sqlite3.connect("patient_responses.db")
@@ -69,6 +72,7 @@ bpi_questions = [
 
 # Auto-adjust question numbering (we split compound questions)
 async def run_bpi():
+    patient_id = get_patient_id()
     for i, question in enumerate(bpi_questions):
         await robot_say(f"{question}")
         response = await robot_listen()
