@@ -4,29 +4,43 @@ import datetime
 import asyncio
 import uuid
 import os
+import sys
 
+sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
 
-# Generate patient ID, preferring environment variable
-def get_patient_id() -> str:
-    pid = os.environ.get("patient_id")
-    if not pid:
-        pid = input("Enter patient identifier (or press Enter to generate one): ").strip()
-        if not pid:
-            pid = f"PAT-{uuid.uuid4().hex[:8]}"
-            print(f"Generated Patient ID: {pid}")
-    return pid
-
-async def robot_say(text: str):
-    """Speak through TTS and print as fallback."""
-    print(f"[Ameca says]: {text}\n")
+async def robot_say(text: str) -> None:
+    """Speak through Ameca with console fallback."""
+    print(f"[Ameca]: {text}")
     try:
         system.messaging.post("tts_say", [text, "eng"])
     except Exception:
         pass
 
+
 async def robot_listen() -> str:
-    return input("Your response (0, 1, 2, 3): ").strip()
+    """Block until a spoken utterance is received."""
+    while True:
+        try:
+            evt = await system.wait_for_event("speech_recognized")
+            if isinstance(evt, dict):
+                text = evt.get("text", "").strip()
+                if text:
+                    return text
+        except Exception:
+            pass
+        await asyncio.sleep(0.1)
+
+# Generate patient ID, preferring environment variable
+def get_patient_id() -> str:
+    pid = os.environ.get("patient_id")
+    if not pid:
+        pid = f"PAT-{uuid.uuid4().hex[:8]}"
+    return pid
+
+# map spoken numbers to digits
+DIGIT_WORDS = {"zero": "0", "one": "1", "two": "2", "three": "3"}
+
 
 async def store_response_to_db(patient_id: str, question_number: int, question_title: str, answer: str, score: int):
     """Send response data to the remote server."""
@@ -40,7 +54,6 @@ async def store_response_to_db(patient_id: str, question_number: int, question_t
         answer=answer,
         score=score,
     )
-    print(f"[REMOTE] Q{question_number} [{question_title}] → '{answer}' (Score: {score})")
 
 bdi_questions = [
     ("Sadness", ["I do not feel sad.", "I feel sad.", "I am sad all the time and can't snap out of it.", "I am so sad and unhappy that I can't stand it."]),
@@ -72,17 +85,18 @@ async def run_beck_depression_inventory():
     for i, (title, options) in enumerate(bdi_questions):
         await robot_say(f"Question {i+1} - {title}:")
         for idx, opt in enumerate(options):
-            print(f"  [{idx}] {opt}")
+            await robot_say(f"Option {idx}: {opt}")
 
         valid = False
         while not valid:
-            response = await robot_listen()
-            if response in ["0", "1", "2", "3"]:
+            response = (await robot_listen()).lower()
+            response = DIGIT_WORDS.get(response, response)
+            if response in {"0", "1", "2", "3"}:
                 score = int(response)
                 valid = True
                 await robot_say("Thank you.")
             else:
-                await robot_say("Please enter a valid response: 0, 1, 2, or 3.")
+                await robot_say("Please answer with zero, one, two, or three.")
 
         total_score += score
         await store_response_to_db(patient_id, i+1, title, options[score], score)
