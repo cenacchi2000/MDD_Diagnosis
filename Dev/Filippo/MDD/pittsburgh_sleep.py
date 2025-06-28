@@ -24,6 +24,10 @@ conn.commit()
 
 async def robot_say(text):
     print(f"\n[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
 
 async def robot_listen():
     return input("Your response: ").strip()
@@ -67,6 +71,7 @@ async def ask_and_store(patient_id, qnum, text, score_map=None):
     await robot_say(text)
     ans = (await robot_listen()).lower()
     score = score_map[ans] if score_map and ans in score_map else -1
+    await robot_say("Thank you.")
     cursor.execute(
         '''INSERT INTO responses_psqi VALUES (?, ?, ?, ?, ?, ?)''',
         (patient_id, get_timestamp(), qnum, text, ans.title(), score),

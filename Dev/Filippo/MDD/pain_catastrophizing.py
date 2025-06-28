@@ -60,6 +60,10 @@ def current_timestamp():
 
 async def robot_say(text):
     print(f"\n[Ameca]: {text}")
+    try:
+        system.messaging.post("tts_say", [text, "eng"])
+    except Exception:
+        pass
 
 async def robot_listen():
     return input("Your response (0-4): ").strip()
@@ -76,6 +80,7 @@ async def run_pcs():
             response = await robot_listen()
             if response in rating_scale:
                 score = int(response)
+                await robot_say("Thank you.")
                 break
             await robot_say("Invalid response. Please enter a number from 0 to 4.")
 

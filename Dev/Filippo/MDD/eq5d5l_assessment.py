@@ -61,7 +61,12 @@ eq5d5l_dimensions = {
 }
 
 async def robot_say(msg: str):
+    """Speak via TTS with console fallback."""
     print(f"\n[Ameca]: {msg}")
+    try:
+        system.messaging.post("tts_say", [msg, "eng"])
+    except Exception:
+        pass
 
 async def robot_listen() -> str:
     return input("Your response: ").strip()
@@ -96,6 +101,7 @@ async def run_eq5d5l_questionnaire():
                 level = int(response)
                 levels.append(level)
                 health_state_code += str(level)
+                await robot_say("Thank you.")
                 cursor.execute('''
                     INSERT INTO responses_eq5d5l (patient_id, timestamp, dimension, level, health_state_code, vas_score)
                     VALUES (?, ?, ?, ?, ?, ?)
@@ -110,6 +116,7 @@ async def run_eq5d5l_questionnaire():
         vas_input = await robot_listen()
         if vas_input.isdigit() and 0 <= int(vas_input) <= 100:
             vas_score = int(vas_input)
+            await robot_say("Thank you.")
             break
         else:
             await robot_say("Enter a valid number between 0 and 100.")

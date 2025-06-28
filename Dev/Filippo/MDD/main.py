@@ -2,6 +2,15 @@ import asyncio
 import uuid
 import sqlite3
 
+import BeckDepression
+import bpi_inventory
+import central_sensitization
+import dass21_assessment
+import eq5d5l_assessment
+import oswestry_disability_index
+import pain_catastrophizing
+import pittsburgh_sleep
+
 def generate_patient_id():
     return f"PAT-{uuid.uuid4().hex[:8]}"
 
@@ -98,28 +107,24 @@ def store_demographics(patient_id, data):
     conn.commit()
     conn.close()
 
-async def run_script(script_name, patient_id):
-    print(f"\n🟢 Running: {script_name}...")
-    process = await asyncio.create_subprocess_exec(
-        "python", script_name,
-        env={**dict(patient_id=patient_id)},
-    )
-    await process.wait()
+async def run_all_assessments(patient_id: str):
+    """Run all questionnaires sequentially."""
+    import os
+    os.environ["patient_id"] = patient_id
+
+    await bpi_inventory.run_bpi()
+    await central_sensitization.run_csi_inventory()
+    await central_sensitization.run_csi_worksheet()
+    await dass21_assessment.run_dass21()
+    await eq5d5l_assessment.run_eq5d5l_questionnaire()
+    await oswestry_disability_index.run_odi()
+    await pain_catastrophizing.run_pcs()
+    await pittsburgh_sleep.run_psqi()
+    await BeckDepression.run_beck_depression_inventory()
 
 async def main():
     patient_id = collect_demographics()
-    scripts = [
-        "bpi_inventory.py",
-        "central_sensitization.py",
-        "dass21_assessment.py",
-        "eq5d5l_assessment.py",
-        "oswestry_disability_index.py",
-        "pain_catastrophizing.py",
-        "pittsburgh_sleep.py",
-        "BeckDepression.py"  # Last
-    ]
-    for script in scripts:
-        await run_script(script, patient_id)
+    await run_all_assessments(patient_id)
     print("\n✅ All assessments completed.")
 
 if __name__ == "__main__":
