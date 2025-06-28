@@ -1,4 +1,5 @@
 # DASS-21 Questionnaire Script with Automatic Scoring and SQLite Storage
+
 import asyncio
 import datetime
 import os
@@ -28,6 +29,9 @@ async def robot_listen() -> str:
     return ""
 
 
+sys.path.append(os.path.dirname(__file__))
+from remote_storage import send_to_server
+
 
 # Patient ID setup – use environment variable from main.py if available
 def get_patient_id() -> str:
@@ -37,6 +41,7 @@ def get_patient_id() -> str:
     return pid
 
 DIGIT_WORDS = {"zero": "0", "one": "1", "two": "2", "three": "3"}
+
 
 # Categories: d = depression, a = anxiety, s = stress
 questions = [
@@ -101,6 +106,7 @@ async def run_dass21():
                 await robot_say("Thank you.")
                 break
             await robot_say("Invalid. Please answer zero to three.")
+
 
         send_to_server(
             'responses_dass21',

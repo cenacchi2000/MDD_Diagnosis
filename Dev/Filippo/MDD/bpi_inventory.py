@@ -1,6 +1,7 @@
 # Script to administer the full Brief Pain Inventory (BPI), auto-generate patient ID, and store structured answers
 # in SQLite (patient_responses.db)
 
+
 import asyncio
 import datetime
 import os
@@ -36,6 +37,7 @@ def get_patient_id() -> str:
     if not pid:
         pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
+
 
 
 

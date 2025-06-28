@@ -1,4 +1,5 @@
 # Central Sensitization Inventory (CSI) and Worksheet Script
+
 import asyncio
 import datetime
 import os
@@ -36,6 +37,7 @@ def get_patient_id() -> str:
     if not pid:
         pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
+
 
 def timestamp():
     return datetime.datetime.now().isoformat()

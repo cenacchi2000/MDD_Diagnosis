@@ -1,4 +1,5 @@
 # Pittsburgh Sleep Quality Index (PSQI) implementation script
+
 import asyncio
 import datetime
 import os
@@ -31,14 +32,17 @@ async def robot_listen() -> str:
 
 
 
+
 def get_timestamp():
     return datetime.datetime.now().isoformat()
+
 
 def get_patient_id():
     pid = os.environ.get("patient_id")
     if not pid:
         pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
+
 
 # Map responses to scores as per PSQI guidance
 frequency_score = {

@@ -9,6 +9,7 @@ import sys
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
 
+
 async def robot_say(text: str) -> None:
     """Speak through Ameca with console fallback."""
     print(f"[Ameca]: {text}")
@@ -27,6 +28,7 @@ async def robot_listen() -> str:
     except Exception:
         pass
     return ""
+
 
 # Generate patient ID, preferring environment variable
 def get_patient_id() -> str:
