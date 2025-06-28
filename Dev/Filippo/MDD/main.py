@@ -12,7 +12,9 @@ robot_state = ROBOT_STATE.state
 
 from speech_utils import robot_say, robot_listen
 
+
 from datetime import date as dt_date
+
 
 import BeckDepression
 import bpi_inventory

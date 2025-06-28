@@ -17,6 +17,7 @@ async def robot_say(text: str) -> None:
 async def robot_listen() -> str:
     """Return the next transcribed utterance from the speech recognizer."""
     while True:
+
         if system is not None:
             try:
                 evt = await system.wait_for_event("speech_recognized")
@@ -33,3 +34,4 @@ async def robot_listen() -> str:
             text = input("> ").strip()
             if text:
                 return text
+
