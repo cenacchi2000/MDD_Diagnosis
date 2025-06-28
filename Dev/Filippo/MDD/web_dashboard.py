@@ -1,10 +1,5 @@
 import sqlite3
-import base64
-import io
-
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import json
 from flask import Flask, render_template_string
 
 DB_NAME = 'patient_responses.db'
@@ -28,39 +23,28 @@ def get_all_patient_ids(conn, tables):
     cur.execute(f"SELECT DISTINCT patient_id FROM ({union_query}) AS ids")
     return [str(row[0]) for row in cur.fetchall() if row[0] is not None]
 
-
-def plot_data_for_table(patient_id, conn, table_name):
-    """Generate a base64-encoded bar chart for a patient's data in table."""
+def get_data_for_table(patient_id, conn, table_name):
+    """Return label and score lists for the given patient and table."""
     cur = conn.cursor()
     cols = [row[1] for row in cur.execute(f"PRAGMA table_info({table_name})")]
-    if 'score' not in cols:
+    if "score" not in cols:
         return None
-    q_col = next((c for c in ('question_title','question_text','dimension') if c in cols), None)
+    q_col = next(
+        (c for c in ("question_title", "question_text", "dimension") if c in cols),
+        None,
+    )
     if not q_col:
         return None
     cur.execute(
         f"SELECT {q_col}, score FROM {table_name} WHERE patient_id=?",
-        (patient_id,)
+        (patient_id,),
     )
     rows = cur.fetchall()
-
-    fig, ax = plt.subplots(figsize=(9,5))
-    if rows:
-        labels = [str(r[0])[:40] for r in rows]
-        scores = [r[1] for r in rows]
-        ax.bar(labels, scores, color='#0d6efd')
-        ax.set_ylabel('Score')
-        ax.set_title(table_name.replace('responses_','').upper())
-        ax.tick_params(axis='x', labelrotation=90)
-        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
-    else:
-        ax.text(0.5,0.5,'No data', ha='center', va='center')
-        ax.axis('off')
-    plt.tight_layout()
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png')
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode('utf-8')
+    if not rows:
+        return None
+    labels = [str(r[0])[:40] for r in rows]
+    scores = [r[1] for r in rows]
+    return {"labels": labels, "scores": scores}
 
 INDEX_TEMPLATE = """<!doctype html>
 <html lang='en'>
@@ -95,6 +79,7 @@ PATIENT_TEMPLATE = """<!doctype html>
   <meta charset='utf-8'>
   <meta name='viewport' content='width=device-width, initial-scale=1'>
   <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>
+  <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
   <title>Results for {{ patient_id }}</title>
 </head>
 <body class='bg-light'>
@@ -105,12 +90,12 @@ PATIENT_TEMPLATE = """<!doctype html>
 </nav>
 <div class='container'>
   <h2 class='mb-4'>Results for {{ patient_id }}</h2>
-  {% if images %}
-    {% for table, img in images.items() %}
+  {% if charts %}
+    {% for table in charts %}
     <div class='card mb-4'>
       <div class='card-header fw-bold'>{{ table.replace('responses_', '').upper() }}</div>
-      <div class='card-body text-center'>
-        <img class='img-fluid' src='data:image/png;base64,{{ img }}' alt='{{ table }}'>
+      <div class='card-body'>
+        <canvas id='chart-{{ loop.index }}'></canvas>
       </div>
     </div>
     {% endfor %}
@@ -119,6 +104,27 @@ PATIENT_TEMPLATE = """<!doctype html>
   {% endif %}
   <a class='btn btn-secondary' href='/'>Back</a>
 </div>
+<script>
+  const chartData = {{ charts|tojson }};
+  Object.entries(chartData).forEach(([table, data], idx) => {
+    const ctx = document.getElementById('chart-' + (idx + 1));
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.labels,
+        datasets: [{
+          label: 'Score',
+          data: data.scores,
+          backgroundColor: '#0d6efd'
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  });
+</script>
 </body>
 </html>"""
 
@@ -135,13 +141,13 @@ def index():
 def patient(pid):
     conn = sqlite3.connect(DB_NAME)
     tables = get_response_tables(conn)
-    images = {}
+    charts = {}
     for table in tables:
-        img = plot_data_for_table(pid, conn, table)
-        if img:
-            images[table] = img
+        data = get_data_for_table(pid, conn, table)
+        if data:
+            charts[table] = data
     conn.close()
-    return render_template_string(PATIENT_TEMPLATE, patient_id=pid, images=images)
+    return render_template_string(PATIENT_TEMPLATE, patient_id=pid, charts=charts)
 
 
 if __name__ == '__main__':
