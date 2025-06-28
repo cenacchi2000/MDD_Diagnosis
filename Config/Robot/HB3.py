@@ -1,0 +1,1 @@
+ROBOT_TYPE = 2 # Ameca Desktop
