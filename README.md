@@ -34,8 +34,23 @@ After running the assessments, confirm that the responses were saved by querying
 
 ```bash
 sqlite3 patient_responses.db ".tables"
+sqlite3 patient_responses.db "SELECT * FROM patient_demographics LIMIT 5;"
 ```
 
 This will list the created tables such as `patient_demographics` and
 `responses_bdi`.  You can inspect table contents with standard SQLite commands
 to ensure that data was recorded.
+
+## Web dashboard
+
+You can view basic plots of questionnaire results using a small Flask app.  It
+reads from the same `patient_responses.db` file created by `http_server.py` and
+presents graphs for each patient.
+
+```bash
+pip install flask pandas matplotlib
+python Dev/Filippo/MDD/visualize_web.py
+```
+
+Visit `http://localhost:8000` in your browser to choose a patient ID and see the
+corresponding charts.  Reloading the page will show newly stored results.
