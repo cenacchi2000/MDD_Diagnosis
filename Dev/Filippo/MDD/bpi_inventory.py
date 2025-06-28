@@ -21,14 +21,17 @@ async def robot_say(text: str) -> None:
 
 
 async def robot_listen() -> str:
-    """Return the next spoken utterance."""
-    try:
-        evt = await system.wait_for_event("speech_recognized")
-        if isinstance(evt, dict):
-            return evt.get("text", "").strip()
-    except Exception:
-        pass
-    return ""
+    """Block until a spoken utterance is received."""
+    while True:
+        try:
+            evt = await system.wait_for_event("speech_recognized")
+            if isinstance(evt, dict):
+                text = evt.get("text", "").strip()
+                if text:
+                    return text
+        except Exception:
+            pass
+        await asyncio.sleep(0.1)
 
 
 def get_patient_id() -> str:
@@ -71,6 +74,7 @@ bpi_questions = [
 ]
 
 # Auto-adjust question numbering (we split compound questions)
+
 async def run_bpi():
     patient_id = get_patient_id()
     for i, question in enumerate(bpi_questions):
@@ -90,6 +94,7 @@ async def run_bpi():
 
 
     await robot_say(f"All responses saved for Patient ID: {patient_id}")
+
 
 if __name__ == "__main__":
     asyncio.run(run_bpi())

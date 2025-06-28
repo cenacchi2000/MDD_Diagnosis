@@ -20,7 +20,6 @@ def get_all_patient_ids(conn, tables):
         return []
     cur = conn.cursor()
 
-    
     union_query = " UNION ".join([f"SELECT patient_id FROM {t}" for t in tables])
     cur.execute(f"SELECT DISTINCT patient_id FROM ({union_query}) AS ids")
     return [str(row[0]) for row in cur.fetchall() if row[0] is not None]
@@ -32,8 +31,6 @@ def get_data_for_table(patient_id, conn, table_name):
     cols = [row[1] for row in cur.execute(f"PRAGMA table_info({table_name})")]
     if "score" not in cols:
         return None
-
-    q_col = next((c for c in ("question_title", "question_text", "dimension") if c in cols), None)
 
     if not q_col:
         return None
@@ -50,7 +47,6 @@ def get_data_for_table(patient_id, conn, table_name):
 
 
 
-  
 INDEX_TEMPLATE = """<!doctype html>
 <html lang='en'>
 <head>
@@ -192,5 +188,3 @@ def run(port: int = 8000) -> None:
 if __name__ == '__main__':
     run()
 
-    
-   

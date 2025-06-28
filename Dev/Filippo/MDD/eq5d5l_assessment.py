@@ -1,10 +1,10 @@
 # eq5d5l_assessment.py
+
 import os
 import sys
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
-
 
 async def robot_say(text: str) -> None:
     """Speak through Ameca with console fallback."""
@@ -16,15 +16,17 @@ async def robot_say(text: str) -> None:
 
 
 async def robot_listen() -> str:
-    """Return the next spoken utterance."""
-    try:
-        evt = await system.wait_for_event("speech_recognized")
-        if isinstance(evt, dict):
-            return evt.get("text", "").strip()
-    except Exception:
-        pass
-    return ""
-
+    """Block until a spoken utterance is received."""
+    while True:
+        try:
+            evt = await system.wait_for_event("speech_recognized")
+            if isinstance(evt, dict):
+                text = evt.get("text", "").strip()
+                if text:
+                    return text
+        except Exception:
+            pass
+        await asyncio.sleep(0.1)
 import uuid
 import datetime
 import asyncio
@@ -87,11 +89,13 @@ DIGIT_WORDS = {
     "nine": "9",
 }
 
+
 async def collect_patient_id():
     pid = os.environ.get("patient_id")
     if not pid:
         pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
+
 
 async def run_eq5d5l_questionnaire():
     patient_id = await collect_patient_id()
@@ -99,6 +103,7 @@ async def run_eq5d5l_questionnaire():
     health_state_code = ""
 
     await robot_say("We will begin the EQ-5D-5L assessment. For each question, respond with 1 to 5.")
+
 
     for dimension, statements in eq5d5l_dimensions.items():
         await robot_say(f"{dimension} – please select one of the following:")
@@ -147,7 +152,8 @@ async def run_eq5d5l_questionnaire():
         vas_score=vas_score,
     )
 
-    await robot_say(f"✅ EQ-5D-5L complete. Your health state code is: {health_state_code}")
+
+    await robot_say(f" EQ-5D-5L complete. Your health state code is: {health_state_code}")
     await robot_say(f"Your self-rated health (VAS) score is: {vas_score}")
 
     # Optional: placeholder for utility scoring (requires national dataset e.g. UK, AU)

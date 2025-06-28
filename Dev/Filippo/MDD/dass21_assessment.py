@@ -19,18 +19,18 @@ async def robot_say(text: str) -> None:
 
 
 async def robot_listen() -> str:
-    """Return the next spoken utterance."""
-    try:
-        evt = await system.wait_for_event("speech_recognized")
-        if isinstance(evt, dict):
-            return evt.get("text", "").strip()
-    except Exception:
-        pass
-    return ""
+    """Block until a spoken utterance is received."""
+    while True:
+        try:
+            evt = await system.wait_for_event("speech_recognized")
+            if isinstance(evt, dict):
+                text = evt.get("text", "").strip()
+                if text:
+                    return text
+        except Exception:
+            pass
+        await asyncio.sleep(0.1)
 
-
-sys.path.append(os.path.dirname(__file__))
-from remote_storage import send_to_server
 
 
 # Patient ID setup – use environment variable from main.py if available
@@ -97,6 +97,7 @@ async def run_dass21():
     await robot_say("Welcome to the DASS-21 screening. Please answer 0 (Did not apply) to 3 (Most of the time).")
     for number, text, category in questions:
         await robot_say(f"Q{number}: {text}")
+
         while True:
             response = (await robot_listen()).lower()
             response = DIGIT_WORDS.get(response, response)
@@ -106,7 +107,6 @@ async def run_dass21():
                 await robot_say("Thank you.")
                 break
             await robot_say("Invalid. Please answer zero to three.")
-
 
         send_to_server(
             'responses_dass21',

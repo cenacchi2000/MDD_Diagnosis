@@ -1,11 +1,11 @@
 # Pain Catastrophizing Scale (PCS) – Full Implementation with Scoring and DB Storage
 
+
 import os
 import sys
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
-
 
 async def robot_say(text: str) -> None:
     """Speak through Ameca with console fallback."""
@@ -17,15 +17,17 @@ async def robot_say(text: str) -> None:
 
 
 async def robot_listen() -> str:
-    """Return the next spoken utterance."""
-    try:
-        evt = await system.wait_for_event("speech_recognized")
-        if isinstance(evt, dict):
-            return evt.get("text", "").strip()
-    except Exception:
-        pass
-    return ""
-
+    """Block until a spoken utterance is received."""
+    while True:
+        try:
+            evt = await system.wait_for_event("speech_recognized")
+            if isinstance(evt, dict):
+                text = evt.get("text", "").strip()
+                if text:
+                    return text
+        except Exception:
+            pass
+        await asyncio.sleep(0.1)
 import datetime
 import uuid
 import asyncio
@@ -38,6 +40,7 @@ def get_patient_id() -> str:
     if not pid:
         pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
+
 
 # PCS questions
 pcs_questions = [
@@ -64,10 +67,12 @@ rating_scale = {
     "4": "All the time"
 }
 
+
 def current_timestamp():
     return datetime.datetime.now().isoformat()
 
 DIGIT_WORDS = {"zero": "0", "one": "1", "two": "2", "three": "3", "four": "4"}
+
 
 
 async def run_pcs():
@@ -79,6 +84,7 @@ async def run_pcs():
     for i, question in enumerate(pcs_questions):
         await robot_say(f"Q{i+1}: {question}")
 
+
         while True:
             response = (await robot_listen()).lower()
             response = DIGIT_WORDS.get(response, response)
@@ -87,6 +93,7 @@ async def run_pcs():
                 await robot_say("Thank you.")
                 break
             await robot_say("Invalid response. Please answer zero to four.")
+
 
         total_score += score
         send_to_server(
