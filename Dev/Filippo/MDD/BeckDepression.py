@@ -1,5 +1,6 @@
 # Beck Depression Inventory (BDI) - Integrated with shared database (patient_responses.db)
 
+
 import datetime
 import asyncio
 import uuid
@@ -55,6 +56,7 @@ async def store_response_to_db(patient_id: str, question_number: int, question_t
         score=score,
     )
 
+
 bdi_questions = [
     ("Sadness", ["I do not feel sad.", "I feel sad.", "I am sad all the time and can't snap out of it.", "I am so sad and unhappy that I can't stand it."]),
     ("Pessimism", ["I am not particularly discouraged about the future.", "I feel discouraged about the future.", "I feel I have nothing to look forward to.", "I feel the future is hopeless and that things cannot be done."]),
@@ -79,6 +81,7 @@ bdi_questions = [
     ("Sexual interest", ["I have not noticed any recent changes in my interest in sex.", "I am less interested in sex than I used to be.", "I have almost no interest in sex.", "I have lost interest in sex completely."])
 ]
 
+
 async def run_beck_depression_inventory():
     patient_id = get_patient_id()
     total_score = 0
@@ -97,6 +100,7 @@ async def run_beck_depression_inventory():
                 await robot_say("Thank you.")
             else:
                 await robot_say("Please answer with zero, one, two, or three.")
+
 
         total_score += score
         await store_response_to_db(patient_id, i+1, title, options[score], score)

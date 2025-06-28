@@ -1,4 +1,5 @@
 # DASS-21 Questionnaire Script with Automatic Scoring and SQLite Storage
+
 import asyncio
 import datetime
 import os
@@ -40,6 +41,7 @@ def get_patient_id() -> str:
     return pid
 
 DIGIT_WORDS = {"zero": "0", "one": "1", "two": "2", "three": "3"}
+
 
 # Categories: d = depression, a = anxiety, s = stress
 questions = [
@@ -95,6 +97,7 @@ async def run_dass21():
     await robot_say("Welcome to the DASS-21 screening. Please answer 0 (Did not apply) to 3 (Most of the time).")
     for number, text, category in questions:
         await robot_say(f"Q{number}: {text}")
+
         while True:
             response = (await robot_listen()).lower()
             response = DIGIT_WORDS.get(response, response)
