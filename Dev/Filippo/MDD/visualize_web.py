@@ -1,5 +1,4 @@
 import sqlite3
-import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -38,16 +37,6 @@ def plot_data_for_table(patient_id, conn, table_name):
     if q_col is None:
         return None
 
-    query = f"SELECT {q_col}, score FROM {table_name} WHERE patient_id = ?"
-    df = pd.read_sql_query(query, conn, params=(patient_id,))
-
-    fig, ax = plt.subplots(figsize=(9, 5))
-    if df.empty:
-        ax.text(0.5, 0.5, f'No data found for {table_name}', ha='center', va='center')
-        ax.axis('off')
-    else:
-        df[q_col] = df[q_col].astype(str).str[:40]
-        ax.bar(df[q_col], df['score'], color='#0d6efd')
         ax.set_title(table_name.replace('responses_', '').upper())
         ax.set_ylabel('Score')
         ax.tick_params(axis='x', labelrotation=90)
