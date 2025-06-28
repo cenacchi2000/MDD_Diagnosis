@@ -2,24 +2,10 @@
 
 import datetime
 import asyncio
-import sqlite3
 import uuid
 import os
 
-# Setup shared database
-conn = sqlite3.connect("patient_responses.db")
-cursor = conn.cursor()
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS responses_bdi (
-        patient_id TEXT,
-        timestamp TEXT,
-        question_number INTEGER,
-        question_title TEXT,
-        answer TEXT,
-        score INTEGER
-    )
-''')
-conn.commit()
+from remote_storage import send_to_server
 
 # Generate patient ID, preferring environment variable
 def get_patient_id() -> str:
@@ -43,13 +29,18 @@ async def robot_listen() -> str:
     return input("Your response (0, 1, 2, 3): ").strip()
 
 async def store_response_to_db(patient_id: str, question_number: int, question_title: str, answer: str, score: int):
+    """Send response data to the remote server."""
     timestamp = datetime.datetime.now().isoformat()
-    cursor.execute('''
-        INSERT INTO responses_bdi (patient_id, timestamp, question_number, question_title, answer, score)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (patient_id, timestamp, question_number, question_title, answer, score))
-    conn.commit()
-    print(f"[DB] Q{question_number} [{question_title}] → '{answer}' (Score: {score})")
+    send_to_server(
+        'responses_bdi',
+        patient_id=patient_id,
+        timestamp=timestamp,
+        question_number=question_number,
+        question_title=question_title,
+        answer=answer,
+        score=score,
+    )
+    print(f"[REMOTE] Q{question_number} [{question_title}] → '{answer}' (Score: {score})")
 
 bdi_questions = [
     ("Sadness", ["I do not feel sad.", "I feel sad.", "I am sad all the time and can't snap out of it.", "I am so sad and unhappy that I can't stand it."]),

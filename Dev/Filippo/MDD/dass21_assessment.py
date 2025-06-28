@@ -1,25 +1,11 @@
 # DASS-21 Questionnaire Script with Automatic Scoring and SQLite Storage
 import asyncio
 import datetime
-import sqlite3
+from remote_storage import send_to_server
 import uuid
 import os
 
-# SQLite setup
-conn = sqlite3.connect("patient_responses.db")
-cursor = conn.cursor()
 
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS responses_dass21 (
-        patient_id TEXT,
-        timestamp TEXT,
-        question_number INTEGER,
-        question_text TEXT,
-        score INTEGER,
-        category TEXT
-    )
-''')
-conn.commit()
 
 # Patient ID setup – use environment variable from main.py if available
 def get_patient_id() -> str:
@@ -104,10 +90,15 @@ async def run_dass21():
                 break
             await robot_say("Invalid. Enter 0, 1, 2, or 3 only.")
 
-        cursor.execute('''
-            INSERT INTO responses_dass21 VALUES (?, ?, ?, ?, ?, ?)
-        ''', (patient_id, datetime.datetime.now().isoformat(), number, text, score, category))
-        conn.commit()
+        send_to_server(
+            'responses_dass21',
+            patient_id=patient_id,
+            timestamp=datetime.datetime.now().isoformat(),
+            question_number=number,
+            question_text=text,
+            score=score,
+            category=category,
+        )
 
     await robot_say("Thank you. Here are your scores:")
     for cat, label in [('d', 'Depression'), ('a', 'Anxiety'), ('s', 'Stress')]:

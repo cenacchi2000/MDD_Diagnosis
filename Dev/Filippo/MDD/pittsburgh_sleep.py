@@ -1,26 +1,12 @@
 # Pittsburgh Sleep Quality Index (PSQI) implementation script
 import asyncio
 import datetime
-import sqlite3
+from remote_storage import send_to_server
 import uuid
 from typing import Literal
 import os
 
-# Initialize DB connection
-conn = sqlite3.connect("patient_responses.db")
-cursor = conn.cursor()
 
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS responses_psqi (
-        patient_id TEXT,
-        timestamp TEXT,
-        question_number TEXT,
-        question_text TEXT,
-        answer TEXT,
-        score INTEGER
-    )
-''')
-conn.commit()
 
 async def robot_say(text):
     print(f"\n[Ameca]: {text}")
@@ -72,11 +58,15 @@ async def ask_and_store(patient_id, qnum, text, score_map=None):
     ans = (await robot_listen()).lower()
     score = score_map[ans] if score_map and ans in score_map else -1
     await robot_say("Thank you.")
-    cursor.execute(
-        '''INSERT INTO responses_psqi VALUES (?, ?, ?, ?, ?, ?)''',
-        (patient_id, get_timestamp(), qnum, text, ans.title(), score),
+    send_to_server(
+        'responses_psqi',
+        patient_id=patient_id,
+        timestamp=get_timestamp(),
+        question_number=qnum,
+        question_text=text,
+        answer=ans.title(),
+        score=score,
     )
-    conn.commit()
     return ans, score
 
 def _parse_time_to_hours(timestr: str) -> float:
@@ -95,13 +85,26 @@ async def run_psqi():
     await robot_say("Enter time values in 24h format (e.g., 23:30) or hours as numbers.")
     bedtime_str, _ = await ask_and_store(patient_id, "1", "What time have you usually gone to bed at night?")
     latency = int(await robot_listen())  # minutes to fall asleep
-    cursor.execute('''INSERT INTO responses_psqi VALUES (?, ?, ?, ?, ?, ?)''',
-                   (patient_id, get_timestamp(), "2", "How long to fall asleep in minutes:", str(latency), -1))
+    send_to_server(
+        'responses_psqi',
+        patient_id=patient_id,
+        timestamp=get_timestamp(),
+        question_number="2",
+        question_text="How long to fall asleep in minutes:",
+        answer=str(latency),
+        score=-1,
+    )
     waketime_str, _ = await ask_and_store(patient_id, "3", "What time have you usually gotten up in the morning?")
     sleep_hours = float(await robot_listen())
-    cursor.execute('''INSERT INTO responses_psqi VALUES (?, ?, ?, ?, ?, ?)''',
-                   (patient_id, get_timestamp(), "4", "How many hours of actual sleep per night:", str(sleep_hours), -1))
-    conn.commit()
+    send_to_server(
+        'responses_psqi',
+        patient_id=patient_id,
+        timestamp=get_timestamp(),
+        question_number="4",
+        question_text="How many hours of actual sleep per night:",
+        answer=str(sleep_hours),
+        score=-1,
+    )
 
     # Part 2: Disturbance checklist (5a–j)
     disturbance_sum = 0

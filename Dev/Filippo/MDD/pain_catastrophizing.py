@@ -1,26 +1,12 @@
 # Pain Catastrophizing Scale (PCS) – Full Implementation with Scoring and DB Storage
 
-import sqlite3
+from remote_storage import send_to_server
 import datetime
 import uuid
 import asyncio
 import os
 
-# Initialize or connect to shared database
-conn = sqlite3.connect("patient_responses.db")
-cursor = conn.cursor()
 
-# Create table if it doesn't exist
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS responses_pcs (
-        patient_id TEXT,
-        timestamp TEXT,
-        question_number INTEGER,
-        question_text TEXT,
-        score INTEGER
-    )
-''')
-conn.commit()
 
 # Patient ID handling
 def get_patient_id() -> str:
@@ -88,11 +74,14 @@ async def run_pcs():
             await robot_say("Invalid response. Please enter a number from 0 to 4.")
 
         total_score += score
-        cursor.execute('''
-            INSERT INTO responses_pcs (patient_id, timestamp, question_number, question_text, score)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (patient_id, current_timestamp(), i + 1, question, score))
-        conn.commit()
+        send_to_server(
+            'responses_pcs',
+            patient_id=patient_id,
+            timestamp=current_timestamp(),
+            question_number=i + 1,
+            question_text=question,
+            score=score,
+        )
 
         await robot_say(f"Recorded response: {rating_scale[response]} (Score: {score})")
 

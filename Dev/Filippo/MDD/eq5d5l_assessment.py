@@ -1,25 +1,11 @@
 # eq5d5l_assessment.py
-import sqlite3
+from remote_storage import send_to_server
 import uuid
 import datetime
 import asyncio
 import os
 
-# Initialize DB
-conn = sqlite3.connect("patient_responses.db")
-cursor = conn.cursor()
 
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS responses_eq5d5l (
-        patient_id TEXT,
-        timestamp TEXT,
-        dimension TEXT,
-        level INTEGER,
-        health_state_code TEXT,
-        vas_score INTEGER
-    )
-''')
-conn.commit()
 
 # EQ-5D-5L dimension descriptions
 eq5d5l_dimensions = {
@@ -102,11 +88,15 @@ async def run_eq5d5l_questionnaire():
                 levels.append(level)
                 health_state_code += str(level)
                 await robot_say("Thank you.")
-                cursor.execute('''
-                    INSERT INTO responses_eq5d5l (patient_id, timestamp, dimension, level, health_state_code, vas_score)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (patient_id, get_timestamp(), dimension, level, None, None))
-                conn.commit()
+                send_to_server(
+                    'responses_eq5d5l',
+                    patient_id=patient_id,
+                    timestamp=get_timestamp(),
+                    dimension=dimension,
+                    level=level,
+                    health_state_code=None,
+                    vas_score=None,
+                )
                 break
             else:
                 await robot_say("Please enter a number between 1 and 5.")
@@ -121,13 +111,15 @@ async def run_eq5d5l_questionnaire():
         else:
             await robot_say("Enter a valid number between 0 and 100.")
 
-    # Update DB with health state code and VAS for each row for this patient
-    cursor.execute('''
-        UPDATE responses_eq5d5l
-        SET health_state_code = ?, vas_score = ?
-        WHERE patient_id = ?
-    ''', (health_state_code, vas_score, patient_id))
-    conn.commit()
+    send_to_server(
+        'responses_eq5d5l',
+        patient_id=patient_id,
+        timestamp=get_timestamp(),
+        dimension='SUMMARY',
+        level=None,
+        health_state_code=health_state_code,
+        vas_score=vas_score,
+    )
 
     await robot_say(f"✅ EQ-5D-5L complete. Your health state code is: {health_state_code}")
     await robot_say(f"Your self-rated health (VAS) score is: {vas_score}")
