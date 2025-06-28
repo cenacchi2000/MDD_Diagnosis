@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
 import sqlite3
 
 DB_PATH = 'patient_responses.db'
@@ -110,29 +111,48 @@ TABLE_SCHEMAS = {
         )'''
 }
 
-app = Flask(__name__)
+class StoreHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        if self.path != '/store':
+            self.send_response(404)
+            self.end_headers()
+            return
 
+        length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(length).decode('utf-8')
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b'invalid json')
+            return
 
-def get_conn():
-    return sqlite3.connect(DB_PATH)
+        table = data.pop('table', None)
+        if not table or table not in TABLE_SCHEMAS:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b'unknown table')
+            return
 
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute(TABLE_SCHEMAS[table])
+        columns = ', '.join(data.keys())
+        placeholders = ', '.join('?' for _ in data)
+        cur.execute(
+            f"INSERT INTO {table} ({columns}) VALUES ({placeholders})",
+            tuple(data.values()),
+        )
+        conn.commit()
+        conn.close()
 
-@app.route('/store', methods=['POST'])
-def store():
-    data = request.get_json(force=True)
-    table = data.pop('table', None)
-    if not table or table not in TABLE_SCHEMAS:
-        return jsonify({'error': 'unknown table'}), 400
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute(TABLE_SCHEMAS[table])
-    columns = ', '.join(data.keys())
-    placeholders = ', '.join('?' for _ in data)
-    cur.execute(f"INSERT INTO {table} ({columns}) VALUES ({placeholders})", tuple(data.values()))
-    conn.commit()
-    conn.close()
-    return jsonify({'status': 'ok'})
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'ok')
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    server = HTTPServer(('0.0.0.0', 5000), StoreHandler)
+    print('Server listening on port 5000...')
+    server.serve_forever()

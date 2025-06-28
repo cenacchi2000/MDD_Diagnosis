@@ -3,32 +3,42 @@
 
 import asyncio
 import datetime
-from remote_storage import send_to_server
-import uuid
 import os
+import sys
+import uuid
 
+sys.path.append(os.path.dirname(__file__))
+from remote_storage import send_to_server
 
-def get_patient_id() -> str:
-    """Retrieve patient ID from environment or prompt the user."""
-    pid = os.environ.get("patient_id")
-    if not pid:
-        pid = input("Enter patient identifier (or press enter to generate one): ").strip()
-        if not pid:
-            pid = f"PAT-{uuid.uuid4().hex[:8]}"
-            print(f"Generated Patient ID: {pid}")
-    return pid
-
-
-
-async def robot_say(text: str):
+async def robot_say(text: str) -> None:
+    """Speak through Ameca with console fallback."""
     print(f"[Ameca]: {text}")
     try:
         system.messaging.post("tts_say", [text, "eng"])
     except Exception:
         pass
 
+
 async def robot_listen() -> str:
-    return input("Your response: ").strip()
+    """Return the next spoken utterance."""
+    try:
+        evt = await system.wait_for_event("speech_recognized")
+        if isinstance(evt, dict):
+            return evt.get("text", "").strip()
+    except Exception:
+        pass
+    return ""
+
+
+def get_patient_id() -> str:
+    """Retrieve patient ID from environment or auto-generate."""
+    pid = os.environ.get("patient_id")
+    if not pid:
+        pid = f"PAT-{uuid.uuid4().hex[:8]}"
+    return pid
+
+
+
 
 # Long-form BPI Questions — simplified text w/ freeform or numeric entry
 bpi_questions = [
@@ -76,7 +86,6 @@ async def run_bpi():
             response=response,
         )
 
-        print(f"[Saved] Question {i + 1}: {response}")
 
     await robot_say(f"All responses saved for Patient ID: {patient_id}")
 
