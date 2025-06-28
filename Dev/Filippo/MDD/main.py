@@ -1,5 +1,9 @@
 import asyncio
 import uuid
+import os
+import sys
+
+sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
 import datetime
 
