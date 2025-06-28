@@ -63,13 +63,24 @@ rating_score = {
 }
 
 async def ask_and_store(patient_id, qnum, text, score_map=None):
+    """Ask a question, store the response and return the raw answer with its score."""
     await robot_say(text)
-    ans = await robot_listen().lower()
+    ans = (await robot_listen()).lower()
     score = score_map[ans] if score_map and ans in score_map else -1
-    cursor.execute('''INSERT INTO responses_psqi VALUES (?, ?, ?, ?, ?, ?)''',
-                   (patient_id, get_timestamp(), qnum, text, ans.title(), score))
+    cursor.execute(
+        '''INSERT INTO responses_psqi VALUES (?, ?, ?, ?, ?, ?)''',
+        (patient_id, get_timestamp(), qnum, text, ans.title(), score),
+    )
     conn.commit()
-    return score
+    return ans, score
+
+def _parse_time_to_hours(timestr: str) -> float:
+    """Convert HH:MM formatted string to decimal hours."""
+    try:
+        t = datetime.datetime.strptime(timestr, "%H:%M").time()
+    except ValueError:
+        raise ValueError(f"Time '{timestr}' not in HH:MM format")
+    return t.hour + t.minute / 60
 
 async def run_psqi():
     patient_id = get_patient_id()
@@ -77,11 +88,11 @@ async def run_psqi():
 
     # Part 1: Raw numeric entries
     await robot_say("Enter time values in 24h format (e.g., 23:30) or hours as numbers.")
-    bedtime = await ask_and_store(patient_id, "1", "What time have you usually gone to bed at night?")
+    bedtime_str, _ = await ask_and_store(patient_id, "1", "What time have you usually gone to bed at night?")
     latency = int(await robot_listen())  # minutes to fall asleep
     cursor.execute('''INSERT INTO responses_psqi VALUES (?, ?, ?, ?, ?, ?)''',
                    (patient_id, get_timestamp(), "2", "How long to fall asleep in minutes:", str(latency), -1))
-    waketime = await ask_and_store(patient_id, "3", "What time have you usually gotten up in the morning?")
+    waketime_str, _ = await ask_and_store(patient_id, "3", "What time have you usually gotten up in the morning?")
     sleep_hours = float(await robot_listen())
     cursor.execute('''INSERT INTO responses_psqi VALUES (?, ?, ?, ?, ?, ?)''',
                    (patient_id, get_timestamp(), "4", "How many hours of actual sleep per night:", str(sleep_hours), -1))
@@ -101,25 +112,25 @@ async def run_psqi():
         "5i. Have pain",
         "5j. Other reason(s), describe"
     ], start=5):
-        score = await ask_and_store(patient_id, str(i), disturbance, frequency_score)
+        _, score = await ask_and_store(patient_id, str(i), disturbance, frequency_score)
         if score != -1:
             disturbance_sum += score
 
     # Questions 6–9
-    med_use = await ask_and_store(patient_id, "6", "How often have you taken medicine to help you sleep?", frequency_score)
-    trouble_awake = await ask_and_store(patient_id, "7", "Trouble staying awake (e.g., driving, eating, social)?", frequency_score)
-    enthusiasm = await ask_and_store(patient_id, "8", "How much of a problem has lack of enthusiasm been?", problem_score)
-    subjective_quality = await ask_and_store(patient_id, "9", "Rate your sleep quality overall:", rating_score)
+    _, med_use = await ask_and_store(patient_id, "6", "How often have you taken medicine to help you sleep?", frequency_score)
+    _, trouble_awake = await ask_and_store(patient_id, "7", "Trouble staying awake (e.g., driving, eating, social)?", frequency_score)
+    _, enthusiasm = await ask_and_store(patient_id, "8", "How much of a problem has lack of enthusiasm been?", problem_score)
+    _, subjective_quality = await ask_and_store(patient_id, "9", "Rate your sleep quality overall:", rating_score)
 
     # Component scoring based on rules
-    comp1 = rating_score.get(subjective_quality, 0)
+    comp1 = subjective_quality
     comp2_score = 0
     if latency <= 15: latency_score = 0
     elif latency <= 30: latency_score = 1
     elif latency <= 60: latency_score = 2
     else: latency_score = 3
 
-    latency_freq = await ask_and_store(patient_id, "5a (recheck)", "Frequency of taking more than 30 min to fall asleep:", frequency_score)
+    _, latency_freq = await ask_and_store(patient_id, "5a (recheck)", "Frequency of taking more than 30 min to fall asleep:", frequency_score)
     comp2_sum = latency_score + latency_freq
     if comp2_sum == 0: comp2_score = 0
     elif comp2_sum <= 2: comp2_score = 1
@@ -129,8 +140,8 @@ async def run_psqi():
     comp3_score = 0 if sleep_hours > 7 else 1 if sleep_hours > 6 else 2 if sleep_hours > 5 else 3
 
     # Bed and wake time for sleep efficiency
-    bed_hour = int(bedtime.split(':')[0]) + int(bedtime.split(':')[1]) / 60
-    wake_hour = int(waketime.split(':')[0]) + int(waketime.split(':')[1]) / 60
+    bed_hour = _parse_time_to_hours(bedtime_str)
+    wake_hour = _parse_time_to_hours(waketime_str)
     time_in_bed = (wake_hour - bed_hour + 24) % 24
     efficiency = (sleep_hours / time_in_bed) * 100 if time_in_bed > 0 else 0
     if efficiency > 85: comp4_score = 0
