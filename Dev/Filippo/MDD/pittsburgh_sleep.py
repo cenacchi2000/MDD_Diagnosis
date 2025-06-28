@@ -1,10 +1,13 @@
 # Pittsburgh Sleep Quality Index (PSQI) implementation script
 import asyncio
 import datetime
-from remote_storage import send_to_server
+import os
+import sys
 import uuid
 from typing import Literal
-import os
+
+sys.path.append(os.path.dirname(__file__))
+from remote_storage import send_to_server
 
 
 
