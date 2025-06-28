@@ -32,6 +32,8 @@ def get_data_for_table(patient_id, conn, table_name):
     if "score" not in cols:
         return None
 
+    q_col = next((c for c in ("question_title", "question_text", "dimension") if c in cols), None)
+
     if not q_col:
         return None
     cur.execute(

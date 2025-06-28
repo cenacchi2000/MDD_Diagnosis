@@ -7,11 +7,14 @@ import sqlite3
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
+ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
+robot_state = ROBOT_STATE.state
 
 async def robot_say(text: str) -> None:
     """Speak through Ameca with console fallback."""
     print(f"[Ameca]: {text}")
     try:
+        robot_state.last_language_code = "eng"
         system.messaging.post("tts_say", [text, "eng"])
     except Exception:
         pass
@@ -55,6 +58,7 @@ async def listen_clean() -> str:
     """Return normalized speech input with digits."""
     ans = (await robot_listen()).lower()
     return DIGIT_WORDS.get(ans, ans)
+
 
 
 
@@ -219,11 +223,14 @@ async def run_all_assessments(patient_id: str):
     await BeckDepression.run_beck_depression_inventory()
 
 async def main():
+    system.messaging.post("mode_change", "silent")
     patient_id = await collect_demographics()
     if not patient_id:
+        system.messaging.post("mode_change", "interaction")
         return
     await run_all_assessments(patient_id)
     await robot_say("All assessments completed.")
+    system.messaging.post("mode_change", "interaction")
 
 
 class Activity:
