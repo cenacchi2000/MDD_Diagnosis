@@ -24,6 +24,7 @@ def get_all_patient_ids(conn, tables):
     cur.execute(f"SELECT DISTINCT patient_id FROM ({union_query}) AS ids")
     return [str(row[0]) for row in cur.fetchall() if row[0] is not None]
 
+
 def get_data_for_table(patient_id, conn, table_name):
     """Return label and score lists for the given patient and table."""
     cur = conn.cursor()
@@ -45,7 +46,6 @@ def get_data_for_table(patient_id, conn, table_name):
     labels = [str(r[0])[:40] for r in rows]
     scores = [r[1] for r in rows]
     return {"labels": labels, "scores": scores}
-
 
 
 
@@ -115,6 +115,7 @@ PATIENT_TEMPLATE = """<!doctype html>
 </script>
 </body>
 </html>"""
+
 
 class DashboardHandler(BaseHTTPRequestHandler):
     def do_GET(self):

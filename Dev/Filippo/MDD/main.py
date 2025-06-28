@@ -173,5 +173,11 @@ async def main():
     await run_all_assessments(patient_id)
     print("\n✅ All assessments completed.")
 
+
+class Activity:
+    async def on_start(self):
+        await main()
+        self.stop()
+
 if __name__ == "__main__":
     asyncio.run(main())
