@@ -27,15 +27,6 @@ cursor.execute('''
         response TEXT
     )
 ''')
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS responses_bdi (
-        patient_id TEXT,
-        timestamp TEXT,
-        question_number INTEGER,
-        question_text TEXT,
-        score INTEGER
-    )
-''')
 conn.commit()
 
 # Long-form BPI Questions — simplified text w/ freeform or numeric entry
