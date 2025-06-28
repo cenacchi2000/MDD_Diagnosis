@@ -14,10 +14,7 @@ from remote_storage import send_to_server
 def get_patient_id() -> str:
     pid = os.environ.get("patient_id")
     if not pid:
-        pid = input("Enter patient identifier (or press Enter to auto-generate): ").strip()
-        if not pid:
-            pid = f"PAT-{uuid.uuid4().hex[:8]}"
-            print(f"Generated Patient ID: {pid}")
+        pid = f"PAT-{uuid.uuid4().hex[:8]}"
     return pid
 
 # Categories: d = depression, a = anxiety, s = stress

@@ -2,6 +2,7 @@ import asyncio
 import uuid
 import os
 import sys
+import sqlite3
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
@@ -15,6 +16,8 @@ import eq5d5l_assessment
 import oswestry_disability_index
 import pain_catastrophizing
 import pittsburgh_sleep
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "patient_responses.db")
 
 
 async def robot_say(text: str):
@@ -33,20 +36,44 @@ async def robot_listen() -> str:
 def generate_patient_id():
     return f"PAT-{uuid.uuid4().hex[:8]}"
 
+def lookup_patient_id(first_name: str, last_name: str) -> str | None:
+    if not os.path.exists(DB_PATH):
+        return None
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT patient_id FROM patient_demographics WHERE name_first=? AND name_last=?",
+        (first_name, last_name),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row else None
+
 async def collect_demographics():
     await robot_say("Welcome to the Pain & Mood Assessment System")
-    patient_id = input("Enter patient ID (or press Enter to auto-generate): ").strip()
-    if not patient_id:
-        patient_id = generate_patient_id()
-        print(f"Generated ID: {patient_id}")
-
-    date = datetime.date.today().strftime("%d/%m/%Y")
 
     await robot_say("Please tell me your last name")
     name_last = await robot_listen()
 
     await robot_say("What is your first name?")
     name_first = await robot_listen()
+
+    env_id = os.environ.get("patient_id")
+    existing = None
+    if env_id:
+        patient_id = env_id
+    else:
+        existing = lookup_patient_id(name_first, name_last)
+        if existing:
+            patient_id = existing
+            print(f"Matched existing patient ID: {patient_id}")
+            await robot_say(f"Welcome back {name_first}. Proceeding to the assessment.")
+            return patient_id
+        patient_id = generate_patient_id()
+        print(f"Generated ID: {patient_id}")
+    new_patient = env_id is None and existing is None
+
+    date = datetime.date.today().strftime("%d/%m/%Y")
 
     await robot_say(
         f"Hi {name_first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
@@ -115,32 +142,33 @@ async def collect_demographics():
     await robot_say("Do you need daily pain medication? 1 yes, 2 no")
     pain_med_daily = await robot_listen()
 
-    store_demographics(
-        patient_id,
-        {
-            "date": date,
-            "name_last": name_last,
-            "name_first": name_first,
-            "name_middle": name_middle,
-            "phone": phone,
-            "sex": sex,
-            "dob": dob,
-            "marital_status": marital_status,
-            "education": education,
-            "degree": degree,
-            "occupation": occupation,
-            "spouse_occupation": spouse_occupation,
-            "job_status": job_status,
-            "diagnosis_time": diagnosis_time,
-            "disease_pain": disease_pain,
-            "pain_symptom": pain_symptom,
-            "surgery": surgery,
-            "surgery_type": surgery_type,
-            "other_pain": other_pain,
-            "pain_med_week": pain_med_week,
-            "pain_med_daily": pain_med_daily,
-        },
-    )
+    if new_patient:
+        store_demographics(
+            patient_id,
+            {
+                "date": date,
+                "name_last": name_last,
+                "name_first": name_first,
+                "name_middle": name_middle,
+                "phone": phone,
+                "sex": sex,
+                "dob": dob,
+                "marital_status": marital_status,
+                "education": education,
+                "degree": degree,
+                "occupation": occupation,
+                "spouse_occupation": spouse_occupation,
+                "job_status": job_status,
+                "diagnosis_time": diagnosis_time,
+                "disease_pain": disease_pain,
+                "pain_symptom": pain_symptom,
+                "surgery": surgery,
+                "surgery_type": surgery_type,
+                "other_pain": other_pain,
+                "pain_med_week": pain_med_week,
+                "pain_med_daily": pain_med_daily,
+            },
+        )
 
     return patient_id
 

@@ -2,7 +2,6 @@
 
 ## Running the HTTP server
 
-
 Questionnaire results are collected by `Dev/Filippo/MDD/http_server.py`.  The
 server relies only on the Python standard library and stores incoming data in
 `patient_responses.db`.
@@ -44,6 +43,15 @@ sqlite3 patient_responses.db "SELECT * FROM patient_demographics LIMIT 5;"
 
 The first command shows all tables created by the server.  You can then run
 standard SQLite queries to inspect the contents and confirm that data was saved.
+
+## Patient identifiers
+
+When running `main.py` the system asks for the patient's first and last name and
+automatically generates an ID in the format `PAT-xxxxxx`.  If the database
+already contains a record with the same first and last name, that existing ID is
+reused so repeated visits are linked to the correct patient.  To run any
+questionnaire independently you can set the environment variable `patient_id`
+before execution.
 
 ## Web dashboard
 
