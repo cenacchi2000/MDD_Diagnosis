@@ -3,6 +3,7 @@
 ## Running the HTTP server
 
 
+
 Patient questionnaire results can be stored remotely using
 `Dev/Filippo/MDD/http_server.py`.  The script uses only Python's built-in
 modules and writes incoming data to `patient_responses.db` in the current
@@ -47,12 +48,12 @@ to ensure that data was recorded.
 ## Web dashboard
 
 
-You can view interactive charts of questionnaire results using a small Flask
-web dashboard.  The app reads from the same `patient_responses.db` database
-created by `http_server.py` and groups results by `patient_id`.
+You can view interactive charts of questionnaire results through a small
+dashboard script that relies only on Python's standard library. It reads from
+the same `patient_responses.db` database created by `http_server.py` and groups
+results by `patient_id`.
 
 ```bash
-pip install flask
 
 python Dev/Filippo/MDD/web_dashboard.py
 ```
@@ -63,5 +64,6 @@ containing numeric scores.  Reload the page after new assessments to view the
 latest results.
 
 You can also launch the same dashboard with `visualize_results.py`, which simply
-imports the dashboard app and runs it on the default port.
+
+imports the `run` function and starts the server on the default port.
 

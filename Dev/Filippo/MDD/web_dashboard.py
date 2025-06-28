@@ -1,10 +1,10 @@
-import sqlite3
+
 import json
-from flask import Flask, render_template_string
+import re
+import sqlite3
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-DB_NAME = 'patient_responses.db'
-
-app = Flask(__name__)
+DB_NAME = "patient_responses.db"
 
 
 def get_response_tables(conn):
@@ -19,7 +19,8 @@ def get_all_patient_ids(conn, tables):
     if not tables:
         return []
     cur = conn.cursor()
-    union_query = ' UNION '.join([f"SELECT patient_id FROM {t}" for t in tables])
+
+    union_query = " UNION ".join([f"SELECT patient_id FROM {t}" for t in tables])
     cur.execute(f"SELECT DISTINCT patient_id FROM ({union_query}) AS ids")
     return [str(row[0]) for row in cur.fetchall() if row[0] is not None]
 
@@ -29,10 +30,9 @@ def get_data_for_table(patient_id, conn, table_name):
     cols = [row[1] for row in cur.execute(f"PRAGMA table_info({table_name})")]
     if "score" not in cols:
         return None
-    q_col = next(
-        (c for c in ("question_title", "question_text", "dimension") if c in cols),
-        None,
-    )
+
+    q_col = next((c for c in ("question_title", "question_text", "dimension") if c in cols), None)
+
     if not q_col:
         return None
     cur.execute(
@@ -45,6 +45,9 @@ def get_data_for_table(patient_id, conn, table_name):
     labels = [str(r[0])[:40] for r in rows]
     scores = [r[1] for r in rows]
     return {"labels": labels, "scores": scores}
+
+
+
 
 INDEX_TEMPLATE = """<!doctype html>
 <html lang='en'>
@@ -63,11 +66,7 @@ INDEX_TEMPLATE = """<!doctype html>
 <div class='container'>
   <h2 class='mb-3'>Select a patient</h2>
   <ul class='list-group'>
-  {% for pid in patient_ids %}
-    <li class='list-group-item'><a href='/patient/{{ pid }}' class='text-decoration-none'>{{ pid }}</a></li>
-  {% else %}
-    <li class='list-group-item'>No patients found.</li>
-  {% endfor %}
+  {patient_list}
   </ul>
 </div>
 </body>
@@ -80,7 +79,7 @@ PATIENT_TEMPLATE = """<!doctype html>
   <meta name='viewport' content='width=device-width, initial-scale=1'>
   <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>
   <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
-  <title>Results for {{ patient_id }}</title>
+  <title>Results for {patient_id}</title>
 </head>
 <body class='bg-light'>
 <nav class='navbar navbar-dark bg-primary mb-4'>
@@ -89,23 +88,12 @@ PATIENT_TEMPLATE = """<!doctype html>
   </div>
 </nav>
 <div class='container'>
-  <h2 class='mb-4'>Results for {{ patient_id }}</h2>
-  {% if charts %}
-    {% for table in charts %}
-    <div class='card mb-4'>
-      <div class='card-header fw-bold'>{{ table.replace('responses_', '').upper() }}</div>
-      <div class='card-body'>
-        <canvas id='chart-{{ loop.index }}'></canvas>
-      </div>
-    </div>
-    {% endfor %}
-  {% else %}
-    <p>No results found.</p>
-  {% endif %}
+  <h2 class='mb-4'>Results for {patient_id}</h2>
+  {chart_divs}
   <a class='btn btn-secondary' href='/'>Back</a>
 </div>
 <script>
-  const chartData = {{ charts|tojson }};
+  const chartData = {charts_json};
   Object.entries(chartData).forEach(([table, data], idx) => {
     const ctx = document.getElementById('chart-' + (idx + 1));
     new Chart(ctx, {
@@ -128,27 +116,76 @@ PATIENT_TEMPLATE = """<!doctype html>
 </body>
 </html>"""
 
-@app.route('/')
-def index():
-    conn = sqlite3.connect(DB_NAME)
-    tables = get_response_tables(conn)
-    patient_ids = get_all_patient_ids(conn, tables)
-    conn.close()
-    return render_template_string(INDEX_TEMPLATE, patient_ids=patient_ids)
+class DashboardHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path in ('/', '/index.html'):
+            self.send_index()
+        else:
+            m = re.match(r'^/patient/(.+)$', self.path)
+            if m:
+                self.send_patient(m.group(1))
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+    def _write_html(self, html: str) -> None:
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(html.encode('utf-8'))
+
+    def send_index(self):
+        conn = sqlite3.connect(DB_NAME)
+        tables = get_response_tables(conn)
+        patient_ids = get_all_patient_ids(conn, tables)
+        conn.close()
+        if patient_ids:
+            items = '\n'.join(
+                f"<li class='list-group-item'><a class='text-decoration-none' href='/patient/{pid}'>{pid}</a></li>"
+                for pid in patient_ids
+            )
+        else:
+            items = "<li class='list-group-item'>No patients found.</li>"
+        html = INDEX_TEMPLATE.format(patient_list=items)
+        self._write_html(html)
+
+    def send_patient(self, patient_id: str):
+        conn = sqlite3.connect(DB_NAME)
+        tables = get_response_tables(conn)
+        charts = {}
+        for table in tables:
+            data = get_data_for_table(patient_id, conn, table)
+            if data:
+                charts[table] = data
+        conn.close()
+        if charts:
+            divs = ''
+            for idx, table in enumerate(charts, start=1):
+                label = table.replace('responses_', '').upper()
+                divs += (
+                    "<div class='card mb-4'>"
+                    f"<div class='card-header fw-bold'>{label}</div>"
+                    "<div class='card-body'>"
+                    f"<canvas id='chart-{idx}'></canvas>"
+                    "</div></div>"
+                )
+        else:
+            divs = "<p>No results found.</p>"
+        html = PATIENT_TEMPLATE.format(
+            patient_id=patient_id,
+            chart_divs=divs,
+            charts_json=json.dumps(charts),
+        )
+        self._write_html(html)
 
 
-@app.route('/patient/<pid>')
-def patient(pid):
-    conn = sqlite3.connect(DB_NAME)
-    tables = get_response_tables(conn)
-    charts = {}
-    for table in tables:
-        data = get_data_for_table(pid, conn, table)
-        if data:
-            charts[table] = data
-    conn.close()
-    return render_template_string(PATIENT_TEMPLATE, patient_id=pid, charts=charts)
+def run(port: int = 8000) -> None:
+    """Start the dashboard server on the given port."""
+    server = HTTPServer(('0.0.0.0', port), DashboardHandler)
+    print(f"Dashboard listening on http://localhost:{port}")
+    server.serve_forever()
 
 
 if __name__ == '__main__':
-    app.run(port=8000)
+    run()
+
