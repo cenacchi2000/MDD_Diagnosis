@@ -22,12 +22,14 @@ cursor.execute('''
 conn.commit()
 
 # Generate patient ID, preferring environment variable
-patient_id = os.environ.get("patient_id")
-if not patient_id:
-    patient_id = input("Enter patient identifier (or press Enter to generate one): ").strip()
-    if not patient_id:
-        patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
-        print(f"Generated Patient ID: {patient_id}")
+def get_patient_id() -> str:
+    pid = os.environ.get("patient_id")
+    if not pid:
+        pid = input("Enter patient identifier (or press Enter to generate one): ").strip()
+        if not pid:
+            pid = f"PAT-{uuid.uuid4().hex[:8]}"
+            print(f"Generated Patient ID: {pid}")
+    return pid
 
 async def robot_say(text: str):
     """Speak through TTS and print as fallback."""
@@ -40,7 +42,7 @@ async def robot_say(text: str):
 async def robot_listen() -> str:
     return input("Your response (0, 1, 2, 3): ").strip()
 
-async def store_response_to_db(question_number: int, question_title: str, answer: str, score: int):
+async def store_response_to_db(patient_id: str, question_number: int, question_title: str, answer: str, score: int):
     timestamp = datetime.datetime.now().isoformat()
     cursor.execute('''
         INSERT INTO responses_bdi (patient_id, timestamp, question_number, question_title, answer, score)
@@ -74,6 +76,7 @@ bdi_questions = [
 ]
 
 async def run_beck_depression_inventory():
+    patient_id = get_patient_id()
     total_score = 0
     for i, (title, options) in enumerate(bdi_questions):
         await robot_say(f"Question {i+1} - {title}:")
@@ -91,7 +94,7 @@ async def run_beck_depression_inventory():
                 await robot_say("Please enter a valid response: 0, 1, 2, or 3.")
 
         total_score += score
-        await store_response_to_db(i+1, title, options[score], score)
+        await store_response_to_db(patient_id, i+1, title, options[score], score)
 
     await robot_say(f"You have completed the questionnaire. Your total score is {total_score}.")
     category = interpret_score(total_score)

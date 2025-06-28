@@ -34,13 +34,16 @@ cursor.execute('''
 ''')
 conn.commit()
 
-# Patient ID – prefer environment variable from main.py
-patient_id = os.environ.get("patient_id")
-if not patient_id:
-    patient_id = input("Enter patient identifier (or press Enter to generate one): ").strip()
-    if not patient_id:
-        patient_id = f"PAT-{uuid.uuid4().hex[:8]}"
-        print(f"Generated Patient ID: {patient_id}")
+
+def get_patient_id() -> str:
+    """Retrieve patient ID from the environment or prompt the user."""
+    pid = os.environ.get("patient_id")
+    if not pid:
+        pid = input("Enter patient identifier (or press Enter to generate one): ").strip()
+        if not pid:
+            pid = f"PAT-{uuid.uuid4().hex[:8]}"
+            print(f"Generated Patient ID: {pid}")
+    return pid
 
 def timestamp():
     return datetime.datetime.now().isoformat()
@@ -105,6 +108,7 @@ score_map = {
 }
 
 async def run_csi_inventory():
+    patient_id = get_patient_id()
     await robot_say("Starting Central Sensitization Inventory (CSI) Part A...")
     total = 0
     for i, question in enumerate(csi_questions):
@@ -139,6 +143,7 @@ async def run_csi_inventory():
     await robot_say(f"This corresponds to: {level} CSP involvement.")
 
 async def run_csi_worksheet():
+    patient_id = get_patient_id()
     await robot_say("Now beginning Part B: Medical history worksheet...")
     for condition in csi_worksheet:
         await robot_say(f"Are you familiar with {condition}? (yes/no)")
