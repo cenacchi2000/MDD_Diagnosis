@@ -1,3 +1,4 @@
+
 import json
 import re
 import sqlite3
@@ -18,10 +19,10 @@ def get_all_patient_ids(conn, tables):
     if not tables:
         return []
     cur = conn.cursor()
+
     union_query = " UNION ".join([f"SELECT patient_id FROM {t}" for t in tables])
     cur.execute(f"SELECT DISTINCT patient_id FROM ({union_query}) AS ids")
     return [str(row[0]) for row in cur.fetchall() if row[0] is not None]
-
 
 def get_data_for_table(patient_id, conn, table_name):
     """Return label and score lists for the given patient and table."""
@@ -29,7 +30,9 @@ def get_data_for_table(patient_id, conn, table_name):
     cols = [row[1] for row in cur.execute(f"PRAGMA table_info({table_name})")]
     if "score" not in cols:
         return None
+
     q_col = next((c for c in ("question_title", "question_text", "dimension") if c in cols), None)
+
     if not q_col:
         return None
     cur.execute(
@@ -42,6 +45,8 @@ def get_data_for_table(patient_id, conn, table_name):
     labels = [str(r[0])[:40] for r in rows]
     scores = [r[1] for r in rows]
     return {"labels": labels, "scores": scores}
+
+
 
 
 INDEX_TEMPLATE = """<!doctype html>
@@ -110,7 +115,6 @@ PATIENT_TEMPLATE = """<!doctype html>
 </script>
 </body>
 </html>"""
-
 
 class DashboardHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -184,3 +188,4 @@ def run(port: int = 8000) -> None:
 
 if __name__ == '__main__':
     run()
+
