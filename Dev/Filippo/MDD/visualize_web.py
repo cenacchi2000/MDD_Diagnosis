@@ -37,31 +37,26 @@ def plot_data_for_table(patient_id, conn, table_name):
     if q_col is None:
         return None
 
-    cur = conn.cursor()
-    cur.execute(
-        f"SELECT {q_col}, score FROM {table_name} WHERE patient_id = ?",
-        (patient_id,),
-    )
-    rows = cur.fetchall()
+fig, ax = plt.subplots(figsize=(9, 5))
+if not rows:
+    ax.text(0.5, 0.5, f'No data found for {table_name}', ha='center', va='center')
+    ax.axis('off')
+else:
+    labels = [str(r[0])[:40] for r in rows]
+    scores = [r[1] for r in rows]
+    ax.bar(labels, scores, color='#0d6efd')
 
-    fig, ax = plt.subplots(figsize=(9, 5))
-    if not rows:
-        ax.text(0.5, 0.5, f'No data found for {table_name}', ha='center', va='center')
-        ax.axis('off')
-    else:
-        labels = [str(r[0])[:40] for r in rows]
-        scores = [r[1] for r in rows]
-        ax.bar(labels, scores, color='#0d6efd')
-        ax.set_title(table_name.replace('responses_', '').upper())
-        ax.set_ylabel('Score')
-        ax.tick_params(axis='x', labelrotation=90)
-        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+ax.set_title(table_name.replace('responses_', '').upper())
+ax.set_ylabel('Score')
+ax.tick_params(axis='x', labelrotation=90)
+ax.grid(True, axis='y', linestyle='--', alpha=0.7)
 
-    plt.tight_layout()
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png')
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode('utf-8')
+plt.tight_layout()
+buf = io.BytesIO()
+fig.savefig(buf, format='png')
+plt.close(fig)
+return base64.b64encode(buf.getvalue()).decode('utf-8')
+
 
 INDEX_TPL = """
 <!doctype html>
@@ -72,21 +67,15 @@ INDEX_TPL = """
     <title>Patient Dashboard</title>
 </head>
 <body class=\"bg-light\">
-<nav class=\"navbar navbar-dark bg-primary mb-4\">
-  <div class=\"container\">
-    <span class=\"navbar-brand mb-0 h1\">Patient Dashboard</span>
-  </div>
-</nav>
-<div class=\"container pb-4\">
-  <h2 class=\"mb-3\">Select a patient</h2>
-  <ul class=\"list-group shadow-sm\">
-  {% for pid in patient_ids %}
-    <li class=\"list-group-item\"><a class=\"text-decoration-none\" href=\"/patient/{{ pid }}\">{{ pid }}</a></li>
-  {% else %}
-    <li class=\"list-group-item\">No patients found.</li>
-  {% endfor %}
+<div class="container py-4">
+  <h1 class="mb-4">Patient Dashboard</h1>
+  <ul class="list-group">
+    {% for pid in patient_ids %}
+      <li class="list-group-item"><a href="/patient/{{ pid }}">{{ pid }}</a></li>
+    {% endfor %}
   </ul>
 </div>
+
 </body>
 </html>
 """
@@ -100,25 +89,21 @@ PATIENT_TPL = """
     <title>Results for {{ patient_id }}</title>
 </head>
 <body class=\"bg-light\">
-<nav class=\"navbar navbar-dark bg-primary mb-4\">
-  <div class=\"container\">
-    <a class=\"navbar-brand\" href=\"/\">Patient Dashboard</a>
-  </div>
-</nav>
-<div class=\"container pb-4\">
-  <h2 class=\"mb-4\">Results for {{ patient_id }}</h2>
+<div class="container py-4">
+  <h1 class="mb-4">Results for {{ patient_id }}</h1>
   {% for table, img in images.items() if img %}
-    <div class=\"card mb-4 shadow-sm\">
-      <div class=\"card-header fw-bold\">{{ table.replace('responses_', '').upper() }}</div>
-      <div class=\"card-body text-center\">
-        <img class=\"img-fluid\" src=\"data:image/png;base64,{{ img }}\" alt=\"{{ table }}\">
+    <div class="card mb-4">
+      <div class="card-header">{{ table.replace('responses_', '').upper() }}</div>
+      <div class="card-body text-center">
+        <img class="img-fluid" src="data:image/png;base64,{{ img }}" alt="{{ table }}">
       </div>
     </div>
   {% else %}
     <p>No results found.</p>
   {% endfor %}
-  <a class=\"btn btn-secondary\" href=\"/\">Back</a>
+  <a class="btn btn-secondary" href="/">Back</a>
 </div>
+
 </body>
 </html>
 """
