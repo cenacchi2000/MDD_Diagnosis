@@ -81,7 +81,7 @@ patients with stored responses.  Selecting an ID shows one plot per questionnair
 containing numeric scores.  Reload the page after new assessments to view the
 latest results.
 
-You can also launch the same dashboard with `visualize_results.py`, which simply
-
-imports the `run` function and starts the server on the default port.
+You can also launch the same dashboard with `visualize_results.py` or
+`visualize_web.py`, both of which simply import the `run` function and start the
+server on the default port.
 

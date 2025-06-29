@@ -19,7 +19,7 @@ if system is None:
 
         @staticmethod
         def import_library(rel_path: str):
-            base_dir = os.path.dirname(__file__)
+            base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
             abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
             module_name = os.path.splitext(os.path.basename(rel_path))[0]
             spec = importlib.util.spec_from_file_location(module_name, abs_path)
@@ -31,7 +31,12 @@ if system is None:
     import builtins
     builtins.system = system
 
-sys.path.append(os.path.dirname(__file__))
+try:
+    MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+except NameError:  # __file__ may be undefined in some environments
+    MODULE_DIR = os.getcwd()
+if MODULE_DIR not in sys.path:
+    sys.path.append(MODULE_DIR)
 from remote_storage import send_to_server
 if system is not None:
     try:
@@ -56,7 +61,7 @@ import oswestry_disability_index
 import pain_catastrophizing
 import pittsburgh_sleep
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "patient_responses.db")
+DB_PATH = os.path.join(MODULE_DIR, "patient_responses.db")
 
 DIGIT_WORDS = {
     "zero": "0",
