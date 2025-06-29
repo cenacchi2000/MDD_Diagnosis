@@ -5,10 +5,37 @@ import os
 import sys
 import sqlite3
 
+try:  # allow running outside the robot system
+    system  # type: ignore[name-defined]
+except NameError:  # pragma: no cover - only executed locally
+    system = None
+
+if system is None:
+    import importlib.util
+
+    class _LocalSystem:
+        """Minimal stand-in for the robot system when running locally."""
+
+        @staticmethod
+        def import_library(rel_path: str):
+            base_dir = os.path.dirname(__file__)
+            abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+            module_name = os.path.splitext(os.path.basename(rel_path))[0]
+            spec = importlib.util.spec_from_file_location(module_name, abs_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+
+    system = _LocalSystem()
+
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
-ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
-robot_state = ROBOT_STATE.state
+if system is not None:
+    try:
+        ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
+        robot_state = ROBOT_STATE.state  # noqa: F401  - used when running on the robot
+    except Exception:
+        robot_state = None
 
 from speech_utils import robot_say, robot_listen
 
