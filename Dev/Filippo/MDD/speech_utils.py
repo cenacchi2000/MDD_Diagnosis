@@ -16,22 +16,22 @@ async def robot_say(text: str) -> None:
 
 async def robot_listen() -> str:
     """Return the next transcribed utterance from the speech recognizer."""
-    while True:
-
-        if system is not None:
-            try:
-                evt = await system.wait_for_event("speech_recognized")
-            except Exception:
-                evt = None
-
-            if isinstance(evt, dict):
-                text = evt.get("text", "").strip()
-                if text:
-                    return text
-
-            await robot_say("I didn't catch that, please repeat.")
-        else:
+    if system is None:
+        while True:
             text = input("> ").strip()
             if text:
                 return text
+            print("[Ameca]: I didn't catch that, please repeat.")
+    else:
+        async with system.world.query_features(name="speech_recognition") as sub:
+            async for evt in sub.async_iter():
+                evt_type = getattr(evt, "type", None)
+                if evt_type == "speech_recognized":
+                    text = getattr(evt, "text", "")
+                    if isinstance(evt, dict):
+                        text = evt.get("text", "")
+                    text = text.strip()
+                    if text:
+                        return text
+                    await robot_say("I didn't catch that, please repeat.")
 
