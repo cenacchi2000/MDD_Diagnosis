@@ -12,7 +12,7 @@ async def robot_say(text: str) -> None:
         try:
             system.messaging.post("tts_say", [text, "eng"])
         except Exception:
-            pass
+            print("[WARN] Failed to send TTS message")
 
 async def robot_listen() -> str:
     """Return the next transcribed utterance from the speech recognizer."""

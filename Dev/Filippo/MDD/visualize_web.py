@@ -1,7 +1,12 @@
 import sqlite3
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+
+try:  # matplotlib is optional on the robot
+    import matplotlib
+    matplotlib.use("Agg")  # use non-GUI backend
+    import matplotlib.pyplot as plt
+except Exception:  # pragma: no cover - if matplotlib isn't available
+    plt = None
+
 from flask import Flask, render_template_string
 import base64
 import io
@@ -25,6 +30,8 @@ def get_all_patient_ids(conn, tables):
 
 def plot_data_for_table(patient_id, conn, table_name):
     """Create a bar chart for the given patient from the specified table."""
+    if plt is None:
+        return None
     cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table_name})")]
     if 'score' not in cols:
         return None  # skip tables without numeric scores
