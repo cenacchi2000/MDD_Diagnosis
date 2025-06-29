@@ -31,10 +31,7 @@ if system is None:
     import builtins
     builtins.system = system
 
-try:
-    MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
-except NameError:  # pragma: no cover - __file__ may be undefined
-    MODULE_DIR = os.getcwd()
+MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if MODULE_DIR not in sys.path:
     sys.path.append(MODULE_DIR)
@@ -42,14 +39,6 @@ if MODULE_DIR not in sys.path:
 from remote_storage import send_to_server
 from speech_utils import robot_say, robot_listen
 import datetime
-
-if system is not None:
-    try:
-        ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
-        robot_state = ROBOT_STATE.state  # noqa: F401 - used on the robot
-    except Exception:
-        print("[WARN] Failed to load robot_state")
-        robot_state = None
 
 import BeckDepression
 import bpi_inventory
