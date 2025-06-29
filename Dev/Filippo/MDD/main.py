@@ -88,13 +88,15 @@ async def ask(question: str, key: str, *, clean: bool = False, store: dict) -> s
     ans = await (listen_clean() if clean else robot_listen())
     await robot_say("Thank you.")
     store[key] = ans
-    send_to_server(
-        "patient_demographics",
-        patient_id=store["patient_id"],
-        timestamp=timestamp(),
-        field=key,
-        value=ans,
-    )
+    patient_id = store.get("patient_id")
+    if patient_id:
+        send_to_server(
+            "patient_demographics",
+            patient_id=patient_id,
+            timestamp=timestamp(),
+            field=key,
+            value=ans,
+        )
     return ans
 
 
@@ -231,7 +233,6 @@ class Activity:
     async def on_start(self):
         await main()
         self.stop()
-
 
 
 if __name__ == "__main__":
