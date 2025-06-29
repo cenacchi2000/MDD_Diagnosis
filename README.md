@@ -64,6 +64,10 @@ reused so repeated visits are linked to the correct patient.  To run any
 questionnaire independently you can set the environment variable `patient_id`
 before execution.
 
+To skip collection of demographic details entirely, set `AUTO_MODE=1` when
+running `main.py`.  In this mode a random patient ID is generated (unless
+`patient_id` is already defined) and the questionnaires start immediately.
+
 ## Web dashboard
 
 
