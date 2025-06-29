@@ -241,9 +241,15 @@ async def run_all_assessments(patient_id: str):
     await BeckDepression.run_beck_depression_inventory()
 
 async def main():
-    patient_id = await collect_demographics()
-    if not patient_id:
-        return
+    """Entry point for running all questionnaires."""
+    auto_mode = os.environ.get("AUTO_MODE", "").lower() in {"1", "true", "yes"}
+    if auto_mode:
+        patient_id = os.environ.get("patient_id", generate_patient_id())
+    else:
+        patient_id = await collect_demographics()
+        if not patient_id:
+            return
+
     await run_all_assessments(patient_id)
     await robot_say("All assessments completed.")
 
