@@ -8,7 +8,8 @@ import sqlite3
 try:  # allow running outside the robot system
     system  # type: ignore[name-defined]
 except NameError:  # pragma: no cover - only executed locally
-    system = None
+    import builtins
+    system = getattr(builtins, "system", None)
 
 if system is None:
     import importlib.util
@@ -27,6 +28,8 @@ if system is None:
             return module
 
     system = _LocalSystem()
+    import builtins
+    builtins.system = system
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
@@ -35,6 +38,7 @@ if system is not None:
         ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
         robot_state = ROBOT_STATE.state  # noqa: F401  - used when running on the robot
     except Exception:
+        print("[WARN] Failed to load robot_state")
         robot_state = None
 
 from speech_utils import robot_say, robot_listen
