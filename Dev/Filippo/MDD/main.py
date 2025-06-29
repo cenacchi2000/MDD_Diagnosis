@@ -1,3 +1,5 @@
+
+
 import asyncio
 import uuid
 import os
@@ -6,8 +8,14 @@ import sqlite3
 
 sys.path.append(os.path.dirname(__file__))
 from remote_storage import send_to_server
+ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
+robot_state = ROBOT_STATE.state
+
 from speech_utils import robot_say, robot_listen
-import datetime
+
+
+from datetime import date as dt_date
+
 
 import BeckDepression
 import bpi_inventory
@@ -36,6 +44,7 @@ async def listen_clean() -> str:
 
 
 
+
 def generate_patient_id():
     return f"PAT-{uuid.uuid4().hex[:8]}"
 
@@ -51,6 +60,7 @@ def lookup_patient_id(first_name: str, last_name: str) -> str | None:
     row = cur.fetchone()
     conn.close()
     return row[0] if row else None
+
 
 async def collect_demographics():
     await robot_say("Welcome to the Pain & Mood Assessment System")
@@ -74,7 +84,7 @@ async def collect_demographics():
         patient_id = generate_patient_id()
     new_patient = env_id is None and existing is None
 
-    date = datetime.date.today().strftime("%d/%m/%Y")
+    current_date = dt_date.today().strftime("%d/%m/%Y")
 
     await robot_say(
         f"Hi {name_first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
@@ -147,7 +157,7 @@ async def collect_demographics():
         store_demographics(
             patient_id,
             {
-                "date": date,
+                "date": current_date,
                 "name_last": name_last,
                 "name_first": name_first,
                 "name_middle": name_middle,
@@ -203,10 +213,13 @@ async def main():
     await robot_say("All assessments completed.")
 
 
+
 class Activity:
     async def on_start(self):
         await main()
         self.stop()
+
+
 
 if __name__ == "__main__":
     asyncio.run(main())
