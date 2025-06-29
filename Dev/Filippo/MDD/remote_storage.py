@@ -1,17 +1,45 @@
 import os
 import json
+import sqlite3
 from urllib import request
 
 SERVER_URL = os.environ.get("SERVER_URL", "http://localhost:5000/store")
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "patient_responses.db")
+
+
+def _store_locally(table: str, data: dict) -> None:
+    """Insert data into the local SQLite database."""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cols = ", ".join(data.keys())
+    placeholders = ", ".join("?" for _ in data)
+    cur.execute(
+        f"CREATE TABLE IF NOT EXISTS {table} ({', '.join(f'{c} TEXT' for c in data)})"
+    )
+    cur.execute(
+        f"INSERT INTO {table} ({cols}) VALUES ({placeholders})",
+        tuple(data.values()),
+    )
+    conn.commit()
+    conn.close()
 
 
 def send_to_server(table: str, **data) -> None:
-    """Send a row of questionnaire data to the remote HTTP server."""
+    """Send a row of questionnaire data to the remote HTTP server.
+
+    If the server cannot be reached, the data is stored locally in
+    ``patient_responses.db`` instead of emitting repeated warnings.
+    """
     payload = json.dumps({"table": table, **data}).encode("utf-8")
-    req = request.Request(
-        SERVER_URL, data=payload, headers={"Content-Type": "application/json"}
-    )
-    try:
-        request.urlopen(req, timeout=5)
-    except Exception as exc:
-        print(f"[WARN] Failed to send data to {SERVER_URL}: {exc}")
+    if SERVER_URL:
+        req = request.Request(
+            SERVER_URL, data=payload, headers={"Content-Type": "application/json"}
+        )
+        try:
+            request.urlopen(req, timeout=5)
+            return
+        except Exception as exc:
+            if os.environ.get("DEBUG_SERVER"):
+                print(f"[WARN] Failed to send data to {SERVER_URL}: {exc}")
+
+    _store_locally(table, data)
