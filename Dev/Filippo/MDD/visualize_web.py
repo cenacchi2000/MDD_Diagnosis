@@ -1,10 +1,5 @@
-import sqlite3
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from flask import Flask, render_template_string
-import base64
-import io
+"""Launch the patient results dashboard.
+
 
 DB_NAME = "patient_responses.db"
 
@@ -84,51 +79,10 @@ INDEX_TPL = """
 
 </body>
 </html>
+
 """
 
-PATIENT_TPL = """
-<!doctype html>
-<html lang=\"en\">
-<head>
-    <meta charset=\"utf-8\">
-    <link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css\" rel=\"stylesheet\">
-    <title>Results for {{ patient_id }}</title>
-</head>
-<body class=\"bg-light\">
-<div class="container py-4">
-  <h1 class="mb-4">Results for {{ patient_id }}</h1>
-  {% for table, img in images.items() if img %}
-    <div class="card mb-4">
-      <div class="card-header">{{ table.replace('responses_', '').upper() }}</div>
-      <div class="card-body text-center">
-        <img class="img-fluid" src="data:image/png;base64,{{ img }}" alt="{{ table }}">
-      </div>
-    </div>
-  {% else %}
-    <p>No results found.</p>
-  {% endfor %}
-  <a class="btn btn-secondary" href="/">Back</a>
-</div>
+from .web_dashboard import run
 
-</body>
-</html>
-"""
-
-@app.route('/')
-def index():
-    conn = sqlite3.connect(DB_NAME)
-    tables = get_available_tables(conn)
-    patient_ids = get_all_patient_ids(conn, tables)
-    conn.close()
-    return render_template_string(INDEX_TPL, patient_ids=patient_ids)
-
-@app.route('/patient/<pid>')
-def patient(pid):
-    conn = sqlite3.connect(DB_NAME)
-    tables = get_available_tables(conn)
-    images = {table: plot_data_for_table(pid, conn, table) for table in tables}
-    conn.close()
-    return render_template_string(PATIENT_TPL, patient_id=pid, images=images)
-
-if __name__ == '__main__':
-    app.run(port=8000)
+if __name__ == "__main__":
+    run()

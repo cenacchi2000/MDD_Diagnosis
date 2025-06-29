@@ -64,6 +64,10 @@ reused so repeated visits are linked to the correct patient.  To run any
 questionnaire independently you can set the environment variable `patient_id`
 before execution.
 
+To skip collection of demographic details entirely, set `AUTO_MODE=1` when
+running `main.py`.  In this mode a random patient ID is generated (unless
+`patient_id` is already defined) and the questionnaires start immediately.
+
 ## Web dashboard
 
 
@@ -81,7 +85,7 @@ patients with stored responses.  Selecting an ID shows one plot per questionnair
 containing numeric scores.  Reload the page after new assessments to view the
 latest results.
 
-You can also launch the same dashboard with `visualize_results.py`, which simply
-
-imports the `run` function and starts the server on the default port.
+You can also launch the same dashboard with `visualize_results.py` or
+`visualize_web.py`, both of which simply import the `run` function and start the
+server on the default port.
 

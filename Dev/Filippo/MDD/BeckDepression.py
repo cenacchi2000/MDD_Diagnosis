@@ -7,7 +7,12 @@ import uuid
 import os
 import sys
 
-sys.path.append(os.path.dirname(__file__))
+try:
+    MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    MODULE_DIR = os.getcwd()
+if MODULE_DIR not in sys.path:
+    sys.path.append(MODULE_DIR)
 from remote_storage import send_to_server
 from speech_utils import robot_say, robot_listen
 
