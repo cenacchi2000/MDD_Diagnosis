@@ -4,7 +4,14 @@ import os
 import sys
 import sqlite3
 
-sys.path.append(os.path.dirname(__file__))
+try:
+    MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+except NameError:  # pragma: no cover - __file__ may be undefined
+    MODULE_DIR = os.getcwd()
+
+if MODULE_DIR not in sys.path:
+    sys.path.append(MODULE_DIR)
+
 from remote_storage import send_to_server
 from speech_utils import robot_say, robot_listen
 import datetime
@@ -18,7 +25,7 @@ import oswestry_disability_index
 import pain_catastrophizing
 import pittsburgh_sleep
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "patient_responses.db")
+DB_PATH = os.path.join(MODULE_DIR, "patient_responses.db")
 
 DIGIT_WORDS = {
     "zero": "0",
