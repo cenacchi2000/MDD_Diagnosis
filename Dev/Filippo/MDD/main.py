@@ -1,21 +1,55 @@
 
-
 import asyncio
 import uuid
 import os
 import sys
 import sqlite3
 
-sys.path.append(os.path.dirname(__file__))
+try:  # allow running inside or outside the robot system
+    system  # type: ignore[name-defined]
+except NameError:  # pragma: no cover - executed locally
+    import builtins
+    system = getattr(builtins, "system", None)
+
+if system is None:
+    import importlib.util
+
+    class _LocalSystem:
+        """Minimal stand-in for the robot system when running locally."""
+
+        @staticmethod
+        def import_library(rel_path: str):
+            base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
+            abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+            module_name = os.path.splitext(os.path.basename(rel_path))[0]
+            spec = importlib.util.spec_from_file_location(module_name, abs_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)  # type: ignore[attr-defined]
+            return module
+
+    system = _LocalSystem()
+    import builtins
+    builtins.system = system
+
+try:
+    MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+except NameError:  # pragma: no cover - __file__ may be undefined
+    MODULE_DIR = os.getcwd()
+
+if MODULE_DIR not in sys.path:
+    sys.path.append(MODULE_DIR)
+
 from remote_storage import send_to_server
-ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
-robot_state = ROBOT_STATE.state
-
 from speech_utils import robot_say, robot_listen
+import datetime
 
-
-from datetime import date as dt_date
-
+if system is not None:
+    try:
+        ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
+        robot_state = ROBOT_STATE.state  # noqa: F401 - used on the robot
+    except Exception:
+        print("[WARN] Failed to load robot_state")
+        robot_state = None
 
 import BeckDepression
 import bpi_inventory
@@ -26,7 +60,7 @@ import oswestry_disability_index
 import pain_catastrophizing
 import pittsburgh_sleep
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "patient_responses.db")
+DB_PATH = os.path.join(MODULE_DIR, "patient_responses.db")
 
 DIGIT_WORDS = {
     "zero": "0",
@@ -41,7 +75,6 @@ async def listen_clean() -> str:
     """Return normalized speech input with digits."""
     ans = (await robot_listen()).lower()
     return DIGIT_WORDS.get(ans, ans)
-
 
 
 
@@ -60,7 +93,6 @@ def lookup_patient_id(first_name: str, last_name: str) -> str | None:
     row = cur.fetchone()
     conn.close()
     return row[0] if row else None
-
 
 async def collect_demographics():
     await robot_say("Welcome to the Pain & Mood Assessment System")
@@ -84,7 +116,7 @@ async def collect_demographics():
         patient_id = generate_patient_id()
     new_patient = env_id is None and existing is None
 
-    current_date = dt_date.today().strftime("%d/%m/%Y")
+    date = datetime.date.today().strftime("%d/%m/%Y")
 
     await robot_say(
         f"Hi {name_first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
@@ -157,7 +189,7 @@ async def collect_demographics():
         store_demographics(
             patient_id,
             {
-                "date": current_date,
+                "date": date,
                 "name_last": name_last,
                 "name_first": name_first,
                 "name_middle": name_middle,
@@ -211,7 +243,6 @@ async def main():
         return
     await run_all_assessments(patient_id)
     await robot_say("All assessments completed.")
-
 
 
 class Activity:
