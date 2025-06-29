@@ -1,13 +1,12 @@
-
 import asyncio
 import uuid
 import os
 import sys
 import sqlite3
 
-try:  # allow running outside the robot system
+try:  # allow running inside or outside the robot system
     system  # type: ignore[name-defined]
-except NameError:  # pragma: no cover - only executed locally
+except NameError:  # pragma: no cover - executed locally
     import builtins
     system = getattr(builtins, "system", None)
 
@@ -24,7 +23,7 @@ if system is None:
             module_name = os.path.splitext(os.path.basename(rel_path))[0]
             spec = importlib.util.spec_from_file_location(module_name, abs_path)
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            spec.loader.exec_module(module)  # type: ignore[attr-defined]
             return module
 
     system = _LocalSystem()
@@ -33,24 +32,23 @@ if system is None:
 
 try:
     MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
-except NameError:  # __file__ may be undefined in some environments
+except NameError:  # pragma: no cover - __file__ may be undefined
     MODULE_DIR = os.getcwd()
+
 if MODULE_DIR not in sys.path:
     sys.path.append(MODULE_DIR)
+
 from remote_storage import send_to_server
+from speech_utils import robot_say, robot_listen
+import datetime
+
 if system is not None:
     try:
         ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
-        robot_state = ROBOT_STATE.state  # noqa: F401  - used when running on the robot
+        robot_state = ROBOT_STATE.state  # noqa: F401 - used on the robot
     except Exception:
         print("[WARN] Failed to load robot_state")
         robot_state = None
-
-from speech_utils import robot_say, robot_listen
-
-
-from datetime import date as dt_date
-
 
 import BeckDepression
 import bpi_inventory
@@ -79,7 +77,6 @@ async def listen_clean() -> str:
 
 
 
-
 def generate_patient_id():
     return f"PAT-{uuid.uuid4().hex[:8]}"
 
@@ -95,7 +92,6 @@ def lookup_patient_id(first_name: str, last_name: str) -> str | None:
     row = cur.fetchone()
     conn.close()
     return row[0] if row else None
-
 
 async def collect_demographics():
     await robot_say("Welcome to the Pain & Mood Assessment System")
@@ -119,7 +115,7 @@ async def collect_demographics():
         patient_id = generate_patient_id()
     new_patient = env_id is None and existing is None
 
-    current_date = dt_date.today().strftime("%d/%m/%Y")
+    date = datetime.date.today().strftime("%d/%m/%Y")
 
     await robot_say(
         f"Hi {name_first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
@@ -192,7 +188,7 @@ async def collect_demographics():
         store_demographics(
             patient_id,
             {
-                "date": current_date,
+                "date": date,
                 "name_last": name_last,
                 "name_first": name_first,
                 "name_middle": name_middle,
@@ -241,25 +237,17 @@ async def run_all_assessments(patient_id: str):
     await BeckDepression.run_beck_depression_inventory()
 
 async def main():
-    """Entry point for running all questionnaires."""
-    auto_mode = os.environ.get("AUTO_MODE", "").lower() in {"1", "true", "yes"}
-    if auto_mode:
-        patient_id = os.environ.get("patient_id", generate_patient_id())
-    else:
-        patient_id = await collect_demographics()
-        if not patient_id:
-            return
-
+    patient_id = await collect_demographics()
+    if not patient_id:
+        return
     await run_all_assessments(patient_id)
     await robot_say("All assessments completed.")
-
 
 
 class Activity:
     async def on_start(self):
         await main()
         self.stop()
-
 
 if __name__ == "__main__":
     asyncio.run(main())
