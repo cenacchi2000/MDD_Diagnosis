@@ -196,18 +196,46 @@ def store_demographics(patient_id, data):
     )
 
 async def run_all_assessments(patient_id: str):
-    """Run all questionnaires sequentially."""
+    """Run questionnaires sequentially, allowing opt out after each."""
     import os
     os.environ["patient_id"] = patient_id
 
+    async def confirm() -> bool:
+        await robot_say("Would you like to continue to the next questionnaire? (Yes/No)")
+        ans = (await robot_listen()).lower()
+        return ans in {"yes", "y"}
+
     await bpi_inventory.run_bpi()
+    if not await confirm():
+        return
+
     await central_sensitization.run_csi_inventory()
+    if not await confirm():
+        return
     await central_sensitization.run_csi_worksheet()
+    if not await confirm():
+        return
+
     await dass21_assessment.run_dass21()
+    if not await confirm():
+        return
+
     await eq5d5l_assessment.run_eq5d5l_questionnaire()
+    if not await confirm():
+        return
+
     await oswestry_disability_index.run_odi()
+    if not await confirm():
+        return
+
     await pain_catastrophizing.run_pcs()
+    if not await confirm():
+        return
+
     await pittsburgh_sleep.run_psqi()
+    if not await confirm():
+        return
+
     await BeckDepression.run_beck_depression_inventory()
 
 async def main():
