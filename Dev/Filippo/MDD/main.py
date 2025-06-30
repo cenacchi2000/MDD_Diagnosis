@@ -13,6 +13,7 @@ except NameError:  # pragma: no cover - executed locally
 
 if system is None:
     import importlib.util
+    import inspect
 
     class _LocalSystem:
         """Minimal stand-in for the robot system when running locally."""
@@ -20,12 +21,6 @@ if system is None:
         @staticmethod
         def import_library(rel_path: str):
             """Import a module relative to the caller's file."""
-            import inspect
-
-            # ``inspect.currentframe`` may return ``None`` in some execution
-            # environments (e.g. optimized or embedded interpreters). Using
-            # ``inspect.stack`` provides a more robust way to locate the caller
-            # frame across different runtime configurations.
             stack = inspect.stack()
             caller_path = None
             if len(stack) > 1:
@@ -53,13 +48,18 @@ if system is None:
                 return None
 
     system = _LocalSystem()
-    import builtins
-    builtins.system = system
+    import builtins as _builtins
+    _builtins.system = system
 
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if MODULE_DIR not in sys.path:
     sys.path.append(MODULE_DIR)
+
+ACTION_UTIL = system.import_library("../../../HB3/chat/actions/action_util.py")
+ActionBuilder = ACTION_UTIL.ActionBuilder
+ActionRegistry = ACTION_UTIL.ActionRegistry
+Action = ACTION_UTIL.Action
 
 from remote_storage import send_to_server
 from speech_utils import robot_say, robot_listen
