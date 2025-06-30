@@ -22,8 +22,24 @@ if system is None:
             """Import a module relative to the caller's file."""
             import inspect
 
-            caller = inspect.getfile(inspect.currentframe().f_back)  # type: ignore[arg-type]
-            base_dir = os.path.dirname(os.path.abspath(caller))
+            caller_frame = inspect.currentframe().f_back
+            caller_path = None
+            if caller_frame is not None:
+                try:
+                    caller_path = inspect.getfile(caller_frame)
+                    if not os.path.exists(caller_path):
+                        caller_path = None
+                except TypeError:
+                    caller_path = None
+                if caller_path is None:
+                    candidate = caller_frame.f_globals.get("__file__")
+                    if isinstance(candidate, str) and os.path.exists(candidate):
+                        caller_path = candidate
+
+            if caller_path is None:
+                raise ImportError("Cannot resolve caller file for relative import")
+
+            base_dir = os.path.dirname(os.path.abspath(caller_path))
             abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
             module_name = os.path.splitext(os.path.basename(rel_path))[0]
             spec = importlib.util.spec_from_file_location(module_name, abs_path)
