@@ -28,6 +28,13 @@ except NameError:  # pragma: no cover - executed locally
     class _LocalSystem:
         import_library = staticmethod(_import_library)
 
+        @staticmethod
+        def tick(*, fps: int = 10):
+            """Return a decorator that simply returns the function."""
+            def decorator(func):
+                return func
+            return decorator
+
     system = _LocalSystem()
     builtins.system = system
 
