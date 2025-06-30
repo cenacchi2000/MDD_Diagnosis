@@ -6,6 +6,9 @@ import sys
 import sqlite3
 import importlib.util
 
+import inspect
+
+
 try:  # allow running inside or outside the robot system
     system  # type: ignore[name-defined]
 except NameError:  # pragma: no cover - executed locally
@@ -13,13 +16,23 @@ except NameError:  # pragma: no cover - executed locally
     system = getattr(builtins, "system", None)
 
 
-def load_library(rel_path: str):
-    """Import a module relative to this file when system is unavailable."""
+
+def import_library(rel_path: str):
+    """Import a module relative to the caller, falling back to this file."""
 
     if system is not None and hasattr(system, "import_library"):
-        return system.import_library(rel_path)
+        try:
+            return system.import_library(rel_path)
+        except Exception:
+            pass
 
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    stack = inspect.stack()
+    caller_path = stack[1].filename if len(stack) > 1 else __file__
+    if not os.path.exists(caller_path):
+        caller_path = __file__
+
+    base_dir = os.path.dirname(os.path.abspath(caller_path))
+
     abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
     module_name = os.path.splitext(os.path.basename(rel_path))[0]
     spec = importlib.util.spec_from_file_location(module_name, abs_path)
@@ -29,12 +42,25 @@ def load_library(rel_path: str):
     spec.loader.exec_module(module)
     return module
 
+
+
+def try_import_library(rel_path: str):
+    """Best-effort version of :func:`import_library`."""
+
+    try:
+        return import_library(rel_path)
+    except Exception:
+        return None
+
+
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if MODULE_DIR not in sys.path:
     sys.path.append(MODULE_DIR)
 
-ACTION_UTIL = load_library("../../../HB3/chat/actions/action_util.py")
+
+ACTION_UTIL = import_library("../../../HB3/chat/actions/action_util.py")
+
 ActionBuilder = ACTION_UTIL.ActionBuilder
 ActionRegistry = ACTION_UTIL.ActionRegistry
 Action = ACTION_UTIL.Action
