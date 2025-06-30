@@ -237,9 +237,28 @@ async def main():
 
 class Activity:
 
-    async def on_start(self):
-        await main()
-        self.stop()
+    def on_start(self):
+        """Launch the assessment workflow as a robot response task."""
+        robot_state = system.import_library("../../../HB3/robot_state.py").state
+        self._task = robot_state.start_response_task(main())
+
+    def on_stop(self):
+        """Cancel any running questionnaire task."""
+        task = getattr(self, "_task", None)
+        if task and not task.done():
+            task.cancel()
+
+    def on_pause(self):
+        pass
+
+    def on_resume(self):
+        pass
+
+    @system.tick(fps=10)
+    def on_tick(self):
+        task = getattr(self, "_task", None)
+        if task and task.done():
+            self.stop()
 
 
 if __name__ == "__main__":
