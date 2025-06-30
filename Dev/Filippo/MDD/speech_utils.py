@@ -2,6 +2,16 @@ import asyncio
 from typing import Optional
 
 try:
+    import pyttsx3
+except Exception:  # pragma: no cover - optional dependency
+    pyttsx3 = None  # type: ignore[assignment]
+
+try:
+    import speech_recognition as sr
+except Exception:  # pragma: no cover - optional dependency
+    sr = None  # type: ignore[assignment]
+
+try:
     from tritium.client.client import Client
 except Exception:  # pragma: no cover - optional dependency
     Client = None  # type: ignore[assignment]
@@ -15,9 +25,12 @@ _tts_client: Optional[Client] = None
 _tts_done: Optional[asyncio.Event] = None
 _asr_client: Optional[object] = None  # SpeechRecognitionClient type not required
 
+_tts_engine: Optional[object] = None
+_recognizer: Optional[object] = None
+
 
 async def _ensure_tts():
-    global _tts_client, _tts_done
+    global _tts_client, _tts_done, _tts_engine
     if _tts_client is None and Client is not None and getattr(system, "unstable", None):
         _tts_client = Client(owner=system.unstable.owner, name="Text To Speech")
         _tts_done = asyncio.Event()
@@ -33,6 +46,12 @@ async def _ensure_tts():
             description="TTS events",
         )
 
+    if _tts_engine is None and pyttsx3 is not None:
+        try:
+            _tts_engine = pyttsx3.init()
+        except Exception:
+            _tts_engine = None
+
 
 async def robot_say(text: str) -> None:
     """Speak through the robot's TTS with console fallback."""
@@ -47,6 +66,10 @@ async def robot_say(text: str) -> None:
             return
         except Exception:
             print("[WARN] Failed to use TTS client")
+    elif _tts_engine is not None:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, lambda: (_tts_engine.say(text), _tts_engine.runAndWait()))
+        return
 
     messaging = getattr(system, "messaging", None)
     if messaging is not None:
@@ -61,13 +84,28 @@ async def robot_listen() -> str:
     world = getattr(system, "world", None)
     if world is None:
 
+        if sr is not None:
+            global _recognizer
+            if _recognizer is None:
+                try:
+                    _recognizer = sr.Recognizer()
+                except Exception:
+                    _recognizer = None
+
+        if _recognizer is not None and sr is not None:
+            try:
+                with sr.Microphone() as source:
+                    audio = _recognizer.listen(source, phrase_time_limit=5)
+                text = _recognizer.recognize_google(audio)
+                if text:
+                    return text
+            except Exception:
+                pass
+
         while True:
             try:
                 text = input("> ")
             except EOFError:
-                # In non-interactive environments input() can raise EOFError.
-                # Returning an empty string allows the caller to handle the
-                # missing input gracefully instead of crashing.
                 return ""
             text = text.strip()
             if text:
