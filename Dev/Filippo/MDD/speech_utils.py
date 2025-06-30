@@ -22,7 +22,14 @@ async def robot_listen() -> str:
     if world is None:
 
         while True:
-            text = input("> ").strip()
+            try:
+                text = input("> ")
+            except EOFError:
+                # In non-interactive environments input() can raise EOFError.
+                # Returning an empty string allows the caller to handle the
+                # missing input gracefully instead of crashing.
+                return ""
+            text = text.strip()
             if text:
                 return text
             print("[Ameca]: I didn't catch that, please repeat.")
