@@ -22,21 +22,16 @@ if system is None:
             """Import a module relative to the caller's file."""
             import inspect
 
-            caller_frame = inspect.currentframe().f_back
+            # ``inspect.currentframe`` may return ``None`` in some execution
+            # environments (e.g. optimized or embedded interpreters). Using
+            # ``inspect.stack`` provides a more robust way to locate the caller
+            # frame across different runtime configurations.
+            stack = inspect.stack()
             caller_path = None
-            if caller_frame is not None:
-                try:
-                    caller_path = inspect.getfile(caller_frame)
-                    if not os.path.exists(caller_path):
-                        caller_path = None
-                except TypeError:
-                    caller_path = None
-                if caller_path is None:
-                    candidate = caller_frame.f_globals.get("__file__")
-                    if isinstance(candidate, str) and os.path.exists(candidate):
-                        caller_path = candidate
+            if len(stack) > 1:
+                caller_path = stack[1].filename
 
-            if caller_path is None:
+            if not caller_path or not os.path.exists(caller_path):
                 raise ImportError("Cannot resolve caller file for relative import")
 
             base_dir = os.path.dirname(os.path.abspath(caller_path))
