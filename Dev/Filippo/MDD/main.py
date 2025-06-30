@@ -1,13 +1,12 @@
-
 import asyncio
 import uuid
 import os
 import sys
 import sqlite3
 
-try:  # allow running outside the robot system
+try:  # allow running inside or outside the robot system
     system  # type: ignore[name-defined]
-except NameError:  # pragma: no cover - only executed locally
+except NameError:  # pragma: no cover - executed locally
     import builtins
     system = getattr(builtins, "system", None)
 
@@ -24,33 +23,21 @@ if system is None:
             module_name = os.path.splitext(os.path.basename(rel_path))[0]
             spec = importlib.util.spec_from_file_location(module_name, abs_path)
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            spec.loader.exec_module(module)  # type: ignore[attr-defined]
             return module
 
     system = _LocalSystem()
     import builtins
     builtins.system = system
 
-try:
-    MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
-except NameError:  # __file__ may be undefined in some environments
-    MODULE_DIR = os.getcwd()
+MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 if MODULE_DIR not in sys.path:
     sys.path.append(MODULE_DIR)
+
 from remote_storage import send_to_server
-if system is not None:
-    try:
-        ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
-        robot_state = ROBOT_STATE.state  # noqa: F401  - used when running on the robot
-    except Exception:
-        print("[WARN] Failed to load robot_state")
-        robot_state = None
-
 from speech_utils import robot_say, robot_listen
-
-
-from datetime import date as dt_date
-
+import datetime
 
 import BeckDepression
 import bpi_inventory
@@ -74,9 +61,31 @@ DIGIT_WORDS = {
 
 async def listen_clean() -> str:
     """Return normalized speech input with digits."""
-    ans = (await robot_listen()).lower()
+    ans = await robot_listen()
+    ans = ans.lower() if isinstance(ans, str) else ""
     return DIGIT_WORDS.get(ans, ans)
 
+
+def timestamp() -> str:
+    return datetime.datetime.now().isoformat()
+
+
+async def ask(question: str, key: str, *, clean: bool = False, store: dict) -> str:
+    """Prompt for an answer, store it and thank the user."""
+    await robot_say(question)
+    ans = await (listen_clean() if clean else robot_listen())
+    await robot_say("Thank you.")
+    store[key] = ans
+    patient_id = store.get("patient_id")
+    if patient_id:
+        send_to_server(
+            "patient_demographics",
+            patient_id=patient_id,
+            timestamp=timestamp(),
+            field=key,
+            value=ans,
+        )
+    return ans
 
 
 
@@ -96,15 +105,13 @@ def lookup_patient_id(first_name: str, last_name: str) -> str | None:
     conn.close()
     return row[0] if row else None
 
-
 async def collect_demographics():
     await robot_say("Welcome to the Pain & Mood Assessment System")
 
-    await robot_say("Please tell me your last name")
-    name_last = await robot_listen()
+    answers = {}
 
-    await robot_say("What is your first name?")
-    name_first = await robot_listen()
+    name_last = await ask("Please tell me your last name", "name_last", store=answers)
+    name_first = await ask("What is your first name?", "name_first", store=answers)
 
     env_id = os.environ.get("patient_id")
     existing = None
@@ -115,11 +122,13 @@ async def collect_demographics():
         if existing:
             patient_id = existing
             await robot_say(f"Welcome back {name_first}. Proceeding to the assessment.")
+            answers["patient_id"] = patient_id
             return patient_id
         patient_id = generate_patient_id()
     new_patient = env_id is None and existing is None
+    answers["patient_id"] = patient_id
 
-    current_date = dt_date.today().strftime("%d/%m/%Y")
+    date = datetime.date.today().strftime("%d/%m/%Y")
 
     await robot_say(
         f"Hi {name_first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
@@ -131,90 +140,50 @@ async def collect_demographics():
 
     await robot_say("Thank you, let's continue.")
 
-    await robot_say("Middle initial if any")
-    name_middle = await robot_listen()
-
-    await robot_say("Phone number")
-    phone = await robot_listen()
-
-    await robot_say("Sex, M or F")
-    sex = await robot_listen()
-
-    await robot_say("Date of birth in DD/MM/YYYY format")
-    dob = await robot_listen()
-
-    await robot_say("Marital Status: 1 for Single, 2 for Married, 3 for Widowed, 4 for Separated or Divorced")
-    marital_status = await listen_clean()
-
-    await robot_say("Highest grade completed, enter 0 to 16 or M.A./M.S.")
-    education = await listen_clean()
-
-    await robot_say("Professional degree if any")
-    degree = await robot_listen()
-
-    await robot_say("Current occupation")
-    occupation = await robot_listen()
-
-    await robot_say("Spouse occupation if any")
-    spouse_occupation = await robot_listen()
-
-    await robot_say("Job status: 1 full time, 2 part time, 3 homemaker, 4 retired, 5 unemployed, 6 other")
-    job_status = await listen_clean()
-
-    await robot_say("How many months since diagnosis?")
-    diagnosis_time = await listen_clean()
-
-    await robot_say("Pain due to present disease? 1 yes, 2 no, 3 uncertain")
-    disease_pain = await listen_clean()
-
-    await robot_say("Was pain a symptom at diagnosis? 1 yes, 2 no, 3 uncertain")
-    pain_symptom = await listen_clean()
-
-    await robot_say("Surgery in the past month? 1 yes, 2 no")
-    surgery = await listen_clean()
-
+    name_middle = await ask("Middle initial if any", "name_middle", store=answers)
+    phone = await ask("Phone number", "phone", store=answers)
+    sex = await ask("Sex, M or F", "sex", store=answers)
+    dob = await ask("Date of birth in DD/MM/YYYY format", "dob", store=answers)
+    marital_status = await ask(
+        "Marital Status: 1 for Single, 2 for Married, 3 for Widowed, 4 for Separated or Divorced",
+        "marital_status",
+        clean=True,
+        store=answers,
+    )
+    education = await ask("Highest grade completed, enter 0 to 16 or M.A./M.S.", "education", clean=True, store=answers)
+    degree = await ask("Professional degree if any", "degree", store=answers)
+    occupation = await ask("Current occupation", "occupation", store=answers)
+    spouse_occupation = await ask("Spouse occupation if any", "spouse_occupation", store=answers)
+    job_status = await ask(
+        "Job status: 1 full time, 2 part time, 3 homemaker, 4 retired, 5 unemployed, 6 other",
+        "job_status",
+        clean=True,
+        store=answers,
+    )
+    diagnosis_time = await ask("How many months since diagnosis?", "diagnosis_time", clean=True, store=answers)
+    disease_pain = await ask("Pain due to present disease? 1 yes, 2 no, 3 uncertain", "disease_pain", clean=True, store=answers)
+    pain_symptom = await ask("Was pain a symptom at diagnosis? 1 yes, 2 no, 3 uncertain", "pain_symptom", clean=True, store=answers)
+    surgery = await ask("Surgery in the past month? 1 yes, 2 no", "surgery", clean=True, store=answers)
     if surgery == "1":
-        await robot_say("What kind of surgery?")
-        surgery_type = await robot_listen()
+        surgery_type = await ask("What kind of surgery?", "surgery_type", store=answers)
     else:
         surgery_type = ""
-
-    await robot_say("Experienced pain other than minor types last week? 1 yes, 2 no")
-    other_pain = await listen_clean()
-
-    await robot_say("Taken pain medication in the last 7 days? 1 yes, 2 no")
-    pain_med_week = await listen_clean()
-
-    await robot_say("Do you need daily pain medication? 1 yes, 2 no")
-    pain_med_daily = await listen_clean()
+        send_to_server(
+            "patient_demographics",
+            patient_id=answers["patient_id"],
+            timestamp=timestamp(),
+            field="surgery_type",
+            value=surgery_type,
+        )
+    other_pain = await ask("Experienced pain other than minor types last week? 1 yes, 2 no", "other_pain", clean=True, store=answers)
+    pain_med_week = await ask("Taken pain medication in the last 7 days? 1 yes, 2 no", "pain_med_week", clean=True, store=answers)
+    pain_med_daily = await ask("Do you need daily pain medication? 1 yes, 2 no", "pain_med_daily", clean=True, store=answers)
 
     if new_patient:
-        store_demographics(
-            patient_id,
-            {
-                "date": current_date,
-                "name_last": name_last,
-                "name_first": name_first,
-                "name_middle": name_middle,
-                "phone": phone,
-                "sex": sex,
-                "dob": dob,
-                "marital_status": marital_status,
-                "education": education,
-                "degree": degree,
-                "occupation": occupation,
-                "spouse_occupation": spouse_occupation,
-                "job_status": job_status,
-                "diagnosis_time": diagnosis_time,
-                "disease_pain": disease_pain,
-                "pain_symptom": pain_symptom,
-                "surgery": surgery,
-                "surgery_type": surgery_type,
-                "other_pain": other_pain,
-                "pain_med_week": pain_med_week,
-                "pain_med_daily": pain_med_daily,
-            },
-        )
+        demog = dict(answers)
+        demog.pop("patient_id", None)
+        demog["date"] = date
+        store_demographics(patient_id, demog)
 
     return patient_id
 
@@ -226,40 +195,60 @@ def store_demographics(patient_id, data):
     )
 
 async def run_all_assessments(patient_id: str):
-    """Run all questionnaires sequentially."""
+    """Run questionnaires sequentially, allowing opt out after each."""
     import os
     os.environ["patient_id"] = patient_id
 
+    async def confirm() -> bool:
+        await robot_say("Would you like to continue to the next questionnaire? (Yes/No)")
+        ans = (await robot_listen()).lower()
+        return ans in {"yes", "y"}
+
     await bpi_inventory.run_bpi()
+    if not await confirm():
+        return
+
     await central_sensitization.run_csi_inventory()
+    if not await confirm():
+        return
     await central_sensitization.run_csi_worksheet()
+    if not await confirm():
+        return
+
     await dass21_assessment.run_dass21()
+    if not await confirm():
+        return
+
     await eq5d5l_assessment.run_eq5d5l_questionnaire()
+    if not await confirm():
+        return
+
     await oswestry_disability_index.run_odi()
+    if not await confirm():
+        return
+
     await pain_catastrophizing.run_pcs()
+    if not await confirm():
+        return
+
     await pittsburgh_sleep.run_psqi()
+    if not await confirm():
+        return
+
     await BeckDepression.run_beck_depression_inventory()
 
 async def main():
-    """Entry point for running all questionnaires."""
-    auto_mode = os.environ.get("AUTO_MODE", "").lower() in {"1", "true", "yes"}
-    if auto_mode:
-        patient_id = os.environ.get("patient_id", generate_patient_id())
-    else:
-        patient_id = await collect_demographics()
-        if not patient_id:
-            return
-
+    patient_id = await collect_demographics()
+    if not patient_id:
+        return
     await run_all_assessments(patient_id)
     await robot_say("All assessments completed.")
-
 
 
 class Activity:
     async def on_start(self):
         await main()
         self.stop()
-
 
 if __name__ == "__main__":
     asyncio.run(main())
