@@ -48,15 +48,6 @@ if MODULE_DIR not in sys.path:
     sys.path.append(MODULE_DIR)
 
 ACTION_UTIL = system.import_library("../../../HB3/chat/actions/action_util.py")
-
-ACTION_UTIL = system.import_library("../../../HB3/chat/actions/action_util.py")
-ActionBuilder = ACTION_UTIL.ActionBuilder
-ActionRegistry = ACTION_UTIL.ActionRegistry
-Action = ACTION_UTIL.Action
-
-
-ACTION_UTIL = import_library("../../../HB3/chat/actions/action_util.py")
-
 ActionBuilder = ACTION_UTIL.ActionBuilder
 ActionRegistry = ACTION_UTIL.ActionRegistry
 Action = ACTION_UTIL.Action
