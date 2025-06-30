@@ -1,4 +1,5 @@
 
+
 import asyncio
 import uuid
 import os
@@ -51,12 +52,20 @@ if system is None:
     import builtins as _builtins
     _builtins.system = system
 
+
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if MODULE_DIR not in sys.path:
     sys.path.append(MODULE_DIR)
 
 ACTION_UTIL = system.import_library("../../../HB3/chat/actions/action_util.py")
+ActionBuilder = ACTION_UTIL.ActionBuilder
+ActionRegistry = ACTION_UTIL.ActionRegistry
+Action = ACTION_UTIL.Action
+
+
+ACTION_UTIL = import_library("../../../HB3/chat/actions/action_util.py")
+
 ActionBuilder = ACTION_UTIL.ActionBuilder
 ActionRegistry = ACTION_UTIL.ActionRegistry
 Action = ACTION_UTIL.Action
@@ -247,6 +256,7 @@ async def run_all_assessments(patient_id: str):
 
     await BeckDepression.run_beck_depression_inventory()
 
+
 async def main():
     patient_id = await collect_demographics()
     if not patient_id:
@@ -256,6 +266,7 @@ async def main():
 
 
 class Activity:
+
     async def on_start(self):
         await main()
         self.stop()
