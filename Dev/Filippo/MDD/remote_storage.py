@@ -8,18 +8,34 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "patient_resp
 
 
 def _store_locally(table: str, data: dict) -> None:
-    """Insert data into the local SQLite database."""
+    """Insert ``data`` into the local SQLite database.
+
+    The schema may evolve over time, so this function ensures any missing
+    columns are added before inserting the row.  ``data`` values are stored as
+    text to keep things simple.
+    """
+
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+
+    # Create the table if it does not yet exist with the current columns
+    col_defs = ", ".join(f"{c} TEXT" for c in data)
+    cur.execute(f"CREATE TABLE IF NOT EXISTS {table} ({col_defs})")
+
+    # Ensure all columns required for this row exist
+    cur.execute(f"PRAGMA table_info({table})")
+    existing_cols = {row[1] for row in cur.fetchall()}
+    for col in data:
+        if col not in existing_cols:
+            cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
+
     cols = ", ".join(data.keys())
     placeholders = ", ".join("?" for _ in data)
-    cur.execute(
-        f"CREATE TABLE IF NOT EXISTS {table} ({', '.join(f'{c} TEXT' for c in data)})"
-    )
     cur.execute(
         f"INSERT INTO {table} ({cols}) VALUES ({placeholders})",
         tuple(data.values()),
     )
+
     conn.commit()
     conn.close()
 
