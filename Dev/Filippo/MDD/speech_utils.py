@@ -17,15 +17,19 @@ async def robot_say(text: str) -> None:
 
 async def robot_listen() -> str:
     """Return the next transcribed utterance from the speech recognizer."""
+
     world = getattr(system, "world", None)
     if world is None:
+
         while True:
             text = input("> ").strip()
             if text:
                 return text
             print("[Ameca]: I didn't catch that, please repeat.")
     else:
+
         async with world.query_features(name="speech_recognition") as sub:
+
             async for evt in sub.async_iter():
                 evt_type = getattr(evt, "type", None)
                 if evt_type == "speech_recognized":
