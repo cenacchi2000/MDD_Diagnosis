@@ -61,8 +61,12 @@ bpi_questions = [
 
 async def run_bpi():
     patient_id = get_patient_id()
-    for i, question in enumerate(bpi_questions):
-        await robot_say(f"{question}")
+
+    index = 0
+    qnum = 1
+    while index < len(bpi_questions):
+        question = bpi_questions[index]
+        await robot_say(question)
         response = await robot_listen()
         await robot_say("Thank you.")
         timestamp = datetime.datetime.now().isoformat()
@@ -71,11 +75,26 @@ async def run_bpi():
             'responses_bpi',
             patient_id=patient_id,
             timestamp=timestamp,
-            question_number=i + 1,
+            question_number=qnum,
             question_text=question,
             response=response,
         )
+        qnum += 1
 
+        resp_lower = response.strip().lower()
+
+        # Conditional follow-ups
+        if index == 4 and resp_lower not in {"yes", "y"}:
+            index += 2  # skip 5b
+            continue
+        if index == 17 and resp_lower not in {"yes", "y"}:
+            index += 4  # skip 12a-c
+            continue
+        if index == 21 and resp_lower not in {"yes", "y"}:
+            index += 2  # skip question 14
+            continue
+
+        index += 1
 
     await robot_say(f"All responses saved for Patient ID: {patient_id}")
 
