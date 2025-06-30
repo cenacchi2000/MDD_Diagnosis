@@ -3,49 +3,38 @@
 import asyncio
 import uuid
 import os
-import sys
 import sqlite3
+import datetime
 
-try:  # allow running inside or outside the robot system
+try:  # allow running outside the robot system
     system  # type: ignore[name-defined]
 except NameError:  # pragma: no cover - executed locally
     import builtins
-    system = getattr(builtins, "system", None)
+    import importlib.util
+    import inspect
 
-import importlib.util
-import inspect
+    def _import_library(rel_path: str):
+        caller = inspect.stack()[1].filename
+        base_dir = os.path.dirname(os.path.abspath(caller))
+        abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+        module_name = os.path.splitext(os.path.basename(rel_path))[0]
+        spec = importlib.util.spec_from_file_location(module_name, abs_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load module from {abs_path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
 
-
-def _import_library(rel_path: str):
-    """Import a module relative to the caller's file."""
-    stack = inspect.stack()
-    caller_path = stack[1].filename if len(stack) > 1 else None
-    if not caller_path or not os.path.exists(caller_path):
-        raise ImportError("Cannot resolve caller file for relative import")
-    base_dir = os.path.dirname(os.path.abspath(caller_path))
-    abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
-    module_name = os.path.splitext(os.path.basename(rel_path))[0]
-    spec = importlib.util.spec_from_file_location(module_name, abs_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot load module from {abs_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-if system is None:
     class _LocalSystem:
         import_library = staticmethod(_import_library)
 
     system = _LocalSystem()
     builtins.system = system
-elif not hasattr(system, "import_library"):
-    system.import_library = _import_library
 
+if not hasattr(system, "import_library"):
+    raise RuntimeError("system.import_library missing")
 
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-if MODULE_DIR not in sys.path:
-    sys.path.append(MODULE_DIR)
 
 ACTION_UTIL = system.import_library("../../../HB3/chat/actions/action_util.py")
 ActionBuilder = ACTION_UTIL.ActionBuilder
@@ -54,16 +43,15 @@ Action = ACTION_UTIL.Action
 
 from remote_storage import send_to_server
 from speech_utils import robot_say, robot_listen
-import datetime
 
-import BeckDepression
-import bpi_inventory
-import central_sensitization
-import dass21_assessment
-import eq5d5l_assessment
-import oswestry_disability_index
-import pain_catastrophizing
-import pittsburgh_sleep
+BeckDepression = system.import_library("./BeckDepression.py")
+bpi_inventory = system.import_library("./bpi_inventory.py")
+central_sensitization = system.import_library("./central_sensitization.py")
+dass21_assessment = system.import_library("./dass21_assessment.py")
+eq5d5l_assessment = system.import_library("./eq5d5l_assessment.py")
+oswestry_disability_index = system.import_library("./oswestry_disability_index.py")
+pain_catastrophizing = system.import_library("./pain_catastrophizing.py")
+pittsburgh_sleep = system.import_library("./pittsburgh_sleep.py")
 
 DB_PATH = os.path.join(MODULE_DIR, "patient_responses.db")
 

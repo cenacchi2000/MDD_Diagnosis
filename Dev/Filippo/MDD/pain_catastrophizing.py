@@ -2,19 +2,39 @@
 
 
 import os
-import sys
-
-try:
-    MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
-except NameError:
-    MODULE_DIR = os.getcwd()
-if MODULE_DIR not in sys.path:
-    sys.path.append(MODULE_DIR)
-from remote_storage import send_to_server
-from speech_utils import robot_say, robot_listen
 import datetime
 import uuid
 import asyncio
+
+try:
+    system  # type: ignore[name-defined]
+except NameError:  # pragma: no cover - executed locally
+    import builtins
+    import importlib.util
+    import inspect
+
+    def _import_library(rel_path: str):
+        caller = inspect.stack()[1].filename
+        base_dir = os.path.dirname(os.path.abspath(caller))
+        abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+        module_name = os.path.splitext(os.path.basename(rel_path))[0]
+        spec = importlib.util.spec_from_file_location(module_name, abs_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load module from {abs_path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    class _LocalSystem:
+        import_library = staticmethod(_import_library)
+
+    system = _LocalSystem()
+    builtins.system = system
+
+send_to_server = system.import_library("./remote_storage.py").send_to_server
+speech_mod = system.import_library("./speech_utils.py")
+robot_say = speech_mod.robot_say
+robot_listen = speech_mod.robot_listen
 
 
 
