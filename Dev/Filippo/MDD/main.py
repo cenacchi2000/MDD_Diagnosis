@@ -1,13 +1,10 @@
 
+
 import asyncio
 import uuid
 import os
 import sys
 import sqlite3
-import importlib.util
-
-import inspect
-
 
 try:  # allow running inside or outside the robot system
     system  # type: ignore[name-defined]
@@ -15,48 +12,56 @@ except NameError:  # pragma: no cover - executed locally
     import builtins
     system = getattr(builtins, "system", None)
 
+if system is None:
+    import importlib.util
+    import inspect
 
+    class _LocalSystem:
+        """Minimal stand-in for the robot system when running locally."""
 
-def import_library(rel_path: str):
-    """Import a module relative to the caller, falling back to this file."""
+        @staticmethod
+        def import_library(rel_path: str):
+            """Import a module relative to the caller's file."""
+            stack = inspect.stack()
+            caller_path = None
+            if len(stack) > 1:
+                caller_path = stack[1].filename
 
-    if system is not None and hasattr(system, "import_library"):
-        try:
-            return system.import_library(rel_path)
-        except Exception:
-            pass
+            if not caller_path or not os.path.exists(caller_path):
+                raise ImportError("Cannot resolve caller file for relative import")
 
-    stack = inspect.stack()
-    caller_path = stack[1].filename if len(stack) > 1 else __file__
-    if not os.path.exists(caller_path):
-        caller_path = __file__
+            base_dir = os.path.dirname(os.path.abspath(caller_path))
+            abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+            module_name = os.path.splitext(os.path.basename(rel_path))[0]
+            spec = importlib.util.spec_from_file_location(module_name, abs_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Cannot load module from {abs_path}")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
 
-    base_dir = os.path.dirname(os.path.abspath(caller_path))
+        @staticmethod
+        def try_import_library(rel_path: str):
+            """Best-effort version of :py:meth:`import_library`."""
+            try:
+                return _LocalSystem.import_library(rel_path)
+            except Exception:
+                return None
 
-    abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
-    module_name = os.path.splitext(os.path.basename(rel_path))[0]
-    spec = importlib.util.spec_from_file_location(module_name, abs_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot load module from {abs_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-
-def try_import_library(rel_path: str):
-    """Best-effort version of :func:`import_library`."""
-
-    try:
-        return import_library(rel_path)
-    except Exception:
-        return None
+    system = _LocalSystem()
+    import builtins as _builtins
+    _builtins.system = system
 
 
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if MODULE_DIR not in sys.path:
     sys.path.append(MODULE_DIR)
+
+ACTION_UTIL = system.import_library("../../../HB3/chat/actions/action_util.py")
+ActionBuilder = ACTION_UTIL.ActionBuilder
+ActionRegistry = ACTION_UTIL.ActionRegistry
+Action = ACTION_UTIL.Action
 
 
 ACTION_UTIL = import_library("../../../HB3/chat/actions/action_util.py")
@@ -251,6 +256,7 @@ async def run_all_assessments(patient_id: str):
 
     await BeckDepression.run_beck_depression_inventory()
 
+
 async def main():
     patient_id = await collect_demographics()
     if not patient_id:
@@ -259,19 +265,8 @@ async def main():
     await robot_say("All assessments completed.")
 
 
-@ActionRegistry.register_builder
-class RunPainMoodAssessment(ActionBuilder):
-    """Provide an action to execute the full pain and mood assessment."""
-
-    def factory(self) -> list[Action]:
-        async def run_pain_mood_assessment() -> str:
-            await main()
-            return "assessment_finished"
-
-        return [run_pain_mood_assessment]
-
-
 class Activity:
+
     async def on_start(self):
         await main()
         self.stop()
