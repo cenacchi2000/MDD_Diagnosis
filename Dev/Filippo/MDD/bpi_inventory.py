@@ -42,12 +42,12 @@ bpi_questions = [
     "8. What relieves your pain? (free response):",
     "9a. In the last 24 hours, how much relief have pain treatments given you? (0%–100%):",
     "10a. Pain interfered with General Activity (0 = No interference, 10 = Complete interference):",
-    "10b. Mood:",
-    "10c. Walking ability:",
-    "10d. Normal work:",
-    "10e. Relations with others:",
-    "10f. Sleep:",
-    "10g. Enjoyment of life:",
+    "10b. How has your mood been affected by pain?",
+    "10c. How has pain affected your walking ability?",
+    "10d. How has pain interfered with your normal work?",
+    "10e. How has pain affected your relations with others?",
+    "10f. How has pain affected your sleep?",
+    "10g. How has pain affected your enjoyment of life?",
     "11. Are you currently taking pain medications? (Yes/No):",
     "12a. If yes, list your current medications:",
     "12b. How often do you take these medications?:",
@@ -61,8 +61,12 @@ bpi_questions = [
 
 async def run_bpi():
     patient_id = get_patient_id()
-    for i, question in enumerate(bpi_questions):
-        await robot_say(f"{question}")
+
+    index = 0
+    qnum = 1
+    while index < len(bpi_questions):
+        question = bpi_questions[index]
+        await robot_say(question)
         response = await robot_listen()
         await robot_say("Thank you.")
         timestamp = datetime.datetime.now().isoformat()
@@ -71,11 +75,26 @@ async def run_bpi():
             'responses_bpi',
             patient_id=patient_id,
             timestamp=timestamp,
-            question_number=i + 1,
+            question_number=qnum,
             question_text=question,
             response=response,
         )
+        qnum += 1
 
+        resp_lower = response.strip().lower()
+
+        # Conditional follow-ups
+        if index == 4 and resp_lower not in {"yes", "y"}:
+            index += 2  # skip 5b
+            continue
+        if index == 17 and resp_lower not in {"yes", "y"}:
+            index += 4  # skip 12a-c
+            continue
+        if index == 21 and resp_lower not in {"yes", "y"}:
+            index += 2  # skip question 14
+            continue
+
+        index += 1
 
     await robot_say(f"All responses saved for Patient ID: {patient_id}")
 

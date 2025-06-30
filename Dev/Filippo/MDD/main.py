@@ -77,15 +77,6 @@ async def ask(question: str, key: str, *, clean: bool = False, store: dict) -> s
     ans = await (listen_clean() if clean else robot_listen())
     await robot_say("Thank you.")
     store[key] = ans
-    patient_id = store.get("patient_id")
-    if patient_id:
-        send_to_server(
-            "patient_demographics",
-            patient_id=patient_id,
-            timestamp=timestamp(),
-            field=key,
-            value=ans,
-        )
     return ans
 
 
@@ -169,13 +160,6 @@ async def collect_demographics():
         surgery_type = await ask("What kind of surgery?", "surgery_type", store=answers)
     else:
         surgery_type = ""
-        send_to_server(
-            "patient_demographics",
-            patient_id=answers["patient_id"],
-            timestamp=timestamp(),
-            field="surgery_type",
-            value=surgery_type,
-        )
     other_pain = await ask("Experienced pain other than minor types last week? 1 yes, 2 no", "other_pain", clean=True, store=answers)
     pain_med_week = await ask("Taken pain medication in the last 7 days? 1 yes, 2 no", "pain_med_week", clean=True, store=answers)
     pain_med_daily = await ask("Do you need daily pain medication? 1 yes, 2 no", "pain_med_daily", clean=True, store=answers)
