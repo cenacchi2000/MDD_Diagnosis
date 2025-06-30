@@ -19,13 +19,27 @@ if system is None:
 
         @staticmethod
         def import_library(rel_path: str):
-            base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
+            """Import a module relative to the caller's file."""
+            import inspect
+
+            caller = inspect.getfile(inspect.currentframe().f_back)  # type: ignore[arg-type]
+            base_dir = os.path.dirname(os.path.abspath(caller))
             abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
             module_name = os.path.splitext(os.path.basename(rel_path))[0]
             spec = importlib.util.spec_from_file_location(module_name, abs_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Cannot load module from {abs_path}")
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)  # type: ignore[attr-defined]
+            spec.loader.exec_module(module)
             return module
+
+        @staticmethod
+        def try_import_library(rel_path: str):
+            """Best-effort version of :py:meth:`import_library`."""
+            try:
+                return _LocalSystem.import_library(rel_path)
+            except Exception:
+                return None
 
     system = _LocalSystem()
     import builtins
@@ -77,15 +91,6 @@ async def ask(question: str, key: str, *, clean: bool = False, store: dict) -> s
     ans = await (listen_clean() if clean else robot_listen())
     await robot_say("Thank you.")
     store[key] = ans
-    patient_id = store.get("patient_id")
-    if patient_id:
-        send_to_server(
-            "patient_demographics",
-            patient_id=patient_id,
-            timestamp=timestamp(),
-            field=key,
-            value=ans,
-        )
     return ans
 
 
@@ -169,13 +174,6 @@ async def collect_demographics():
         surgery_type = await ask("What kind of surgery?", "surgery_type", store=answers)
     else:
         surgery_type = ""
-        send_to_server(
-            "patient_demographics",
-            patient_id=answers["patient_id"],
-            timestamp=timestamp(),
-            field="surgery_type",
-            value=surgery_type,
-        )
     other_pain = await ask("Experienced pain other than minor types last week? 1 yes, 2 no", "other_pain", clean=True, store=answers)
     pain_med_week = await ask("Taken pain medication in the last 7 days? 1 yes, 2 no", "pain_med_week", clean=True, store=answers)
     pain_med_daily = await ask("Do you need daily pain medication? 1 yes, 2 no", "pain_med_daily", clean=True, store=answers)

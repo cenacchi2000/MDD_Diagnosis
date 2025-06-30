@@ -38,7 +38,7 @@ DIGIT_WORDS = {
 
 # Questionnaire structure
 questions = [
-    ("PAIN INTENSITY", [
+    ("Which statement best describes your current pain intensity?", [
         "I can tolerate the pain I have without having to use pain killers",
         "The pain is bad but I manage without taking pain killers",
         "Pain killers give complete relief from pain",
@@ -46,7 +46,7 @@ questions = [
         "Pain killers give very little relief from pain",
         "Pain killers have no effect on the pain and I do not use them"
     ]),
-    ("PERSONAL CARE", [
+    ("Which option best reflects how pain affects your personal care?", [
         "I can look after myself normally without causing extra pain",
         "I can look after myself normally but it causes extra pain",
         "It is painful to look after myself and I am slow and careful",
@@ -54,7 +54,7 @@ questions = [
         "I need help every day in most aspects of self care",
         "I don’t get dressed, I wash with difficulty and stay in bed"
     ]),
-    ("LIFTING", [
+    ("Which statement best reflects your ability to lift items?", [
         "I can lift heavy weights without extra pain",
         "I can lift heavy weights but it gives extra pain",
         "Pain prevents me from lifting heavy weights off the floor, but I can manage if they are on a table",
@@ -62,7 +62,7 @@ questions = [
         "I can lift very light weights",
         "I cannot lift or carry anything at all"
     ]),
-    ("WALKING", [
+    ("Which statement best describes your walking ability?", [
         "Pain does not prevent me walking any distance",
         "Pain prevents me walking more than one mile",
         "Pain prevents me walking more than ½ mile",
@@ -70,7 +70,7 @@ questions = [
         "I can only walk using a stick or crutches",
         "I am in bed most of the time and have to crawl to the toilet"
     ]),
-    ("SITTING", [
+    ("Which statement best describes your ability to sit?", [
         "I can sit in any chair as long as I like",
         "I can only sit in my favorite chair as long as I like",
         "Pain prevents me from sitting more than one hour",
@@ -78,7 +78,7 @@ questions = [
         "Pain prevents me from sitting more than 10 minutes",
         "Pain prevents me from sitting at all"
     ]),
-    ("STANDING", [
+    ("Which statement best describes how long you can stand?", [
         "I can stand as long as I want without extra pain",
         "I can stand as long as I want but it gives me extra pain",
         "Pain prevents me from standing for more than one hour",
@@ -86,7 +86,7 @@ questions = [
         "Pain prevents me from standing for more than 10 minutes",
         "Pain prevents me from standing at all"
     ]),
-    ("SLEEPING", [
+    ("Which statement best describes how pain affects your sleep?", [
         "Pain does not prevent me from sleeping well",
         "I can sleep well only by using medication",
         "Even when I take medication, I have less than 6 hrs sleep",
@@ -94,7 +94,7 @@ questions = [
         "Even when I take medication, I have less than 2 hrs sleep",
         "Pain prevents me from sleeping at all"
     ]),
-    ("SOCIAL LIFE", [
+    ("Which statement best describes how pain affects your social life?", [
         "My social life is normal and gives me no extra pain",
         "My social life is normal but increases the degree of pain",
         "Pain has no significant effect apart from limiting energetic interests",
@@ -102,7 +102,7 @@ questions = [
         "Pain has restricted my social life to my home",
         "I have no social life because of pain"
     ]),
-    ("TRAVELLING", [
+    ("Which statement best describes how pain affects your travel?", [
         "I can travel anywhere without extra pain",
         "I can travel anywhere but it gives me extra pain",
         "Pain is bad, but I manage journeys over 2 hours",
@@ -110,7 +110,7 @@ questions = [
         "Pain restricts me to short necessary journeys under 30 minutes",
         "Pain prevents me from traveling except to the doctor or hospital"
     ]),
-    ("EMPLOYMENT / HOMEMAKING", [
+    ("Which statement best describes how pain affects your work or homemaking?", [
         "My normal job activities do not cause pain",
         "My normal job activities increase pain, but I can still perform all duties",
         "I can perform most duties, but pain prevents me from strenuous tasks",
