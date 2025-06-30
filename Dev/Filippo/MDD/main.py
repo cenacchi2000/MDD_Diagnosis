@@ -51,12 +51,38 @@ if system is None:
     system = _LocalSystem()
     import builtins as _builtins
     _builtins.system = system
+else:
+    # Ensure a working import_library when running inside the robot runtime
+    if not hasattr(system, "import_library"):
+        import importlib.util
+        import inspect
+
+        def _import_library(rel_path: str):
+            stack = inspect.stack()
+            caller_path = None
+            if len(stack) > 1:
+                caller_path = stack[1].filename
+            if not caller_path or not os.path.exists(caller_path):
+                raise ImportError("Cannot resolve caller file for relative import")
+            base_dir = os.path.dirname(os.path.abspath(caller_path))
+            abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+            module_name = os.path.splitext(os.path.basename(rel_path))[0]
+            spec = importlib.util.spec_from_file_location(module_name, abs_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Cannot load module from {abs_path}")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+
+        system.import_library = _import_library
 
 
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if MODULE_DIR not in sys.path:
     sys.path.append(MODULE_DIR)
+
+ACTION_UTIL = system.import_library("../../../HB3/chat/actions/action_util.py")
 
 ACTION_UTIL = system.import_library("../../../HB3/chat/actions/action_util.py")
 ActionBuilder = ACTION_UTIL.ActionBuilder
