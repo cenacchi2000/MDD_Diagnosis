@@ -119,8 +119,6 @@ def store_demographics(pid: str, data: dict) -> None:
 
 async def collect_demographics() -> str | None:
     await say_with_llm("Welcome to the Pain & Mood Assessment System")
-    if system.messaging is not None:
-        system.messaging.post("mode_change", "silent")
     answers: dict[str, str] = {}
 
     last = await ask("Please tell me your last name", "name_last", answers)
@@ -140,6 +138,8 @@ async def collect_demographics() -> str | None:
         return None
 
     await robot_say("Thank you, let's continue.")
+    if system.messaging is not None:
+        system.messaging.post("mode_change", "silent")
 
     await ask("Middle initial if any", "name_middle", answers)
     await ask("Phone number", "phone", answers)
