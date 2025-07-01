@@ -73,6 +73,11 @@ pittsburgh_sleep = system.import_library("./pittsburgh_sleep.py")
 # Disable language model rephrasing unless explicitly requested
 USE_LLM = os.environ.get("USE_LLM", "0") not in {"0", "false", "no"}
 
+
+# Previous chat mode so we can restore it after assessments
+PREVIOUS_MODE: str | None = None
+
+
 async def say_with_llm(text: str) -> None:
     """Speak text, optionally expanded through the LLM."""
     if USE_LLM and llm is not None:
@@ -114,6 +119,8 @@ def store_demographics(pid: str, data: dict) -> None:
 
 async def collect_demographics() -> str | None:
     await say_with_llm("Welcome to the Pain & Mood Assessment System")
+    if system.messaging is not None:
+        system.messaging.post("mode_change", "silent")
     answers: dict[str, str] = {}
 
     last = await ask("Please tell me your last name", "name_last", answers)
@@ -229,9 +236,10 @@ class Activity:
     def on_start(self):
         robot_state = system.import_library("../../../HB3/robot_state.py").state
         mode_ctrl = system.import_library("../../../HB3/chat/mode_controller.py")
-        self._previous_mode = mode_ctrl.ModeController.get_current_mode_name() or "interaction"
-        # Switch to silent mode so the chat system does not interrupt
-        system.messaging.post("mode_change", "silent")
+
+        global PREVIOUS_MODE
+        PREVIOUS_MODE = mode_ctrl.ModeController.get_current_mode_name() or "interaction"
+
         self._task = robot_state.start_response_task(main())
 
     def on_stop(self):
@@ -239,7 +247,10 @@ class Activity:
         if task and not task.done():
             task.cancel()
         # Restore normal interaction mode
-        system.messaging.post("mode_change", self._previous_mode)
+
+        if PREVIOUS_MODE is not None and system.messaging is not None:
+            system.messaging.post("mode_change", PREVIOUS_MODE)
+
 
     def on_pause(self):
         pass
