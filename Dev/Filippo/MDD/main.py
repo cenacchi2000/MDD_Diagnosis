@@ -70,9 +70,12 @@ oswestry_disability_index = system.import_library("./oswestry_disability_index.p
 pain_catastrophizing = system.import_library("./pain_catastrophizing.py")
 pittsburgh_sleep = system.import_library("./pittsburgh_sleep.py")
 
+# Disable language model rephrasing unless explicitly requested
+USE_LLM = os.environ.get("USE_LLM", "0") not in {"0", "false", "no"}
+
 async def say_with_llm(text: str) -> None:
     """Speak text, optionally expanded through the LLM."""
-    if llm is not None:
+    if USE_LLM and llm is not None:
         try:
             messages = [
                 {"role": "system", "content": "You are Ameca, an empathetic healthcare assistant."},
@@ -84,6 +87,7 @@ async def say_with_llm(text: str) -> None:
         except Exception:
             pass
     await robot_say(text)
+
 
 async def ask(question: str, key: str, store: dict, *, numeric: bool = False) -> str:
     """Ask a question and record the user's spoken answer."""
