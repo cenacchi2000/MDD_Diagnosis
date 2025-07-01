@@ -66,7 +66,7 @@ async def robot_say(text: str) -> None:
             return
         except Exception:
             print("[WARN] Failed to use TTS client")
-    elif _tts_engine is not None:
+    if _tts_engine is not None:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda: (_tts_engine.say(text), _tts_engine.runAndWait()))
         return
