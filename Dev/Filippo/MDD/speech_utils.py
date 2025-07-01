@@ -65,7 +65,9 @@ async def robot_say(text: str) -> None:
             await asyncio.wait_for(_tts_done.wait(), timeout=3)
             return
         except Exception:
+
             print("[INFO] Falling back to local TTS")
+
     if _tts_engine is not None:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda: (_tts_engine.say(text), _tts_engine.runAndWait()))
