@@ -70,9 +70,12 @@ oswestry_disability_index = system.import_library("./oswestry_disability_index.p
 pain_catastrophizing = system.import_library("./pain_catastrophizing.py")
 pittsburgh_sleep = system.import_library("./pittsburgh_sleep.py")
 
+# Disable language model rephrasing unless explicitly requested
+USE_LLM = os.environ.get("USE_LLM", "0") not in {"0", "false", "no"}
+
 async def say_with_llm(text: str) -> None:
     """Speak text, optionally expanded through the LLM."""
-    if llm is not None:
+    if USE_LLM and llm is not None:
         try:
             messages = [
                 {"role": "system", "content": "You are Ameca, an empathetic healthcare assistant."},
@@ -84,6 +87,7 @@ async def say_with_llm(text: str) -> None:
         except Exception:
             pass
     await robot_say(text)
+
 
 async def ask(question: str, key: str, store: dict, *, numeric: bool = False) -> str:
     """Ask a question and record the user's spoken answer."""
@@ -187,48 +191,32 @@ async def collect_demographics() -> str | None:
     store_demographics(patient_id, demog)
     return patient_id
 
-async def confirm_continue() -> bool:
-    await say_with_llm("Would you like to continue to the next questionnaire? (Yes/No)")
-
+async def confirm(prompt: str) -> bool:
+    """Ask the user whether to proceed with the given prompt."""
+    await say_with_llm(prompt)
     ans = (await listen()).lower()
-
     return ans in {"yes", "y"}
 
 async def run_all_assessments(pid: str) -> None:
     os.environ["patient_id"] = pid
 
-    await bpi_inventory.run_bpi()
-    if not await confirm_continue():
-        return
+    assessments = [
+        ("Brief Pain Inventory", bpi_inventory.run_bpi),
+        ("Central Sensitization Inventory", central_sensitization.run_csi_inventory),
+        ("Central Sensitization worksheet", central_sensitization.run_csi_worksheet),
+        ("DASS-21 questionnaire", dass21_assessment.run_dass21),
+        ("EQ-5D-5L questionnaire", eq5d5l_assessment.run_eq5d5l_questionnaire),
+        ("Oswestry Disability Index", oswestry_disability_index.run_odi),
+        ("Pain Catastrophizing Scale", pain_catastrophizing.run_pcs),
+        ("Pittsburgh Sleep Quality Index", pittsburgh_sleep.run_psqi),
+        ("Beck Depression Inventory", BeckDepression.run_beck_depression_inventory),
+    ]
 
-    await central_sensitization.run_csi_inventory()
-    if not await confirm_continue():
-        return
-    await central_sensitization.run_csi_worksheet()
-    if not await confirm_continue():
-        return
-
-    await dass21_assessment.run_dass21()
-    if not await confirm_continue():
-        return
-
-    await eq5d5l_assessment.run_eq5d5l_questionnaire()
-    if not await confirm_continue():
-        return
-
-    await oswestry_disability_index.run_odi()
-    if not await confirm_continue():
-        return
-
-    await pain_catastrophizing.run_pcs()
-    if not await confirm_continue():
-        return
-
-    await pittsburgh_sleep.run_psqi()
-    if not await confirm_continue():
-        return
-
-    await BeckDepression.run_beck_depression_inventory()
+    for name, func in assessments:
+        if not await confirm(f"Would you like to begin the {name}? (Yes/No)"):
+            await robot_say("Okay, stopping further assessments.")
+            return
+        await func()
 
 async def main():
     pid = await collect_demographics()
