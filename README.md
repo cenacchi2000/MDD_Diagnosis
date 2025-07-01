@@ -54,6 +54,13 @@ answer options are spoken aloud with text-to-speech and replies are captured
 from the `speech_recognized` event stream, so there is no console input during
 assessments.
 
+Set `USE_LLM=1` to let an external language model rephrase prompts before
+speaking them.  By default the exact questionnaire text is used.
+
+Each questionnaire is optional: before starting one you will be asked whether
+to proceed.  Answer "yes" to run it or "no" to skip all remaining
+questionnaires.
+
 
 ## Patient identifiers
 
