@@ -127,6 +127,8 @@ async def collect_demographics() -> str | None:
     patient_id = os.environ.get("patient_id", f"PAT-{uuid.uuid4().hex[:8]}")
     answers["patient_id"] = patient_id
 
+
+
     await ask("Middle initial if any", "name_middle", answers)
     await ask("Phone number", "phone", answers)
     await ask("Sex, M or F", "sex", answers)
