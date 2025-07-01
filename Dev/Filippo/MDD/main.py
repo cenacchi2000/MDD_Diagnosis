@@ -39,6 +39,7 @@ robot_listen = speech_utils.robot_listen
 
 remote_storage = system.import_library("./remote_storage.py")
 
+
 # Interaction history utilities and robot state
 INTERACTION_HISTORY = system.import_library(
     "../../../HB3/chat/knowledge/interaction_history.py"
@@ -87,7 +88,9 @@ async def say_with_llm(text: str) -> None:
 async def ask(question: str, key: str, store: dict, *, numeric: bool = False) -> str:
     """Ask a question and record the user's spoken answer."""
     await say_with_llm(question)
+
     ans = await listen()
+
     await robot_say("Thank you.")
     if numeric:
         ans = ans.lower()
@@ -118,7 +121,9 @@ async def collect_demographics() -> str | None:
     await say_with_llm(
         f"Hi {first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
     )
+
     proceed = (await listen()).lower()
+
     if proceed not in {"yes", "y"}:
         await robot_say("No problem, thank you for your answer I will ask my human colleague overstep.")
         return None
@@ -184,7 +189,9 @@ async def collect_demographics() -> str | None:
 
 async def confirm_continue() -> bool:
     await say_with_llm("Would you like to continue to the next questionnaire? (Yes/No)")
+
     ans = (await listen()).lower()
+
     return ans in {"yes", "y"}
 
 async def run_all_assessments(pid: str) -> None:
@@ -252,6 +259,7 @@ class Activity:
         if task and task.done():
             self.stop()
 
+
     async def on_message(self, channel, message):
         is_interaction = False
         if channel == "speech_recognized":
@@ -270,6 +278,7 @@ class Activity:
 
         if channel == "speech_recognized":
             system.messaging.post("processing_speech", False)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
