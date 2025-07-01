@@ -119,8 +119,6 @@ def store_demographics(pid: str, data: dict) -> None:
 
 async def collect_demographics() -> str | None:
     await say_with_llm("Welcome to the Pain & Mood Assessment System")
-    if system.messaging is not None:
-        system.messaging.post("mode_change", "silent")
     answers: dict[str, str] = {}
 
     last = await ask("Please tell me your last name", "name_last", answers)
@@ -128,18 +126,6 @@ async def collect_demographics() -> str | None:
 
     patient_id = os.environ.get("patient_id", f"PAT-{uuid.uuid4().hex[:8]}")
     answers["patient_id"] = patient_id
-
-    await say_with_llm(
-        f"Hi {first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
-    )
-
-    proceed = (await listen()).lower()
-
-    if proceed not in {"yes", "y"}:
-        await robot_say("No problem, thank you for your answer I will ask my human colleague overstep.")
-        return None
-
-    await robot_say("Thank you, let's continue.")
 
     await ask("Middle initial if any", "name_middle", answers)
     await ask("Phone number", "phone", answers)
@@ -196,6 +182,20 @@ async def collect_demographics() -> str | None:
     demog = dict(answers)
     demog["date"] = datetime.date.today().strftime("%d/%m/%Y")
     store_demographics(patient_id, demog)
+
+    await say_with_llm(
+        f"Hi {first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
+    )
+
+    proceed = (await listen()).lower()
+
+    if proceed not in {"yes", "y"}:
+        await robot_say(
+            "No problem, thank you for your answer I will ask my human colleague overstep."
+        )
+        return None
+
+    await robot_say("Thank you, let's continue.")
     return patient_id
 
 async def confirm(prompt: str) -> bool:
