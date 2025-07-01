@@ -228,12 +228,18 @@ async def main():
 class Activity:
     def on_start(self):
         robot_state = system.import_library("../../../HB3/robot_state.py").state
+        mode_ctrl = system.import_library("../../../HB3/chat/mode_controller.py")
+        self._previous_mode = mode_ctrl.ModeController.get_current_mode_name() or "interaction"
+        # Switch to silent mode so the chat system does not interrupt
+        system.messaging.post("mode_change", "silent")
         self._task = robot_state.start_response_task(main())
 
     def on_stop(self):
         task = getattr(self, "_task", None)
         if task and not task.done():
             task.cancel()
+        # Restore normal interaction mode
+        system.messaging.post("mode_change", self._previous_mode)
 
     def on_pause(self):
         pass
