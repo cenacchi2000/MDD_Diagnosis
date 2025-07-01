@@ -39,6 +39,22 @@ robot_listen = speech_utils.robot_listen
 
 remote_storage = system.import_library("./remote_storage.py")
 
+
+# Interaction history utilities and robot state
+INTERACTION_HISTORY = system.import_library(
+    "../../../HB3/chat/knowledge/interaction_history.py"
+)
+ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
+robot_state = ROBOT_STATE.state
+
+speech_queue: asyncio.Queue[str] = asyncio.Queue()
+
+async def listen() -> str:
+    """Return the next recognized speech string from the queue or ASR."""
+    if system.messaging is not None:
+        return await speech_queue.get()
+    return await robot_listen()
+
 # Use the default LLM interface if available
 try:
     llm = system.import_library("../../../HB3/lib/llm/llm_interface.py")
@@ -72,7 +88,9 @@ async def say_with_llm(text: str) -> None:
 async def ask(question: str, key: str, store: dict, *, numeric: bool = False) -> str:
     """Ask a question and record the user's spoken answer."""
     await say_with_llm(question)
-    ans = await robot_listen()
+
+    ans = await listen()
+
     await robot_say("Thank you.")
     if numeric:
         ans = ans.lower()
@@ -103,7 +121,9 @@ async def collect_demographics() -> str | None:
     await say_with_llm(
         f"Hi {first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
     )
-    proceed = (await robot_listen()).lower()
+
+    proceed = (await listen()).lower()
+
     if proceed not in {"yes", "y"}:
         await robot_say("No problem, thank you for your answer I will ask my human colleague overstep.")
         return None
@@ -169,7 +189,9 @@ async def collect_demographics() -> str | None:
 
 async def confirm_continue() -> bool:
     await say_with_llm("Would you like to continue to the next questionnaire? (Yes/No)")
-    ans = (await robot_listen()).lower()
+
+    ans = (await listen()).lower()
+
     return ans in {"yes", "y"}
 
 async def run_all_assessments(pid: str) -> None:
@@ -236,6 +258,27 @@ class Activity:
         task = getattr(self, "_task", None)
         if task and task.done():
             self.stop()
+
+
+    async def on_message(self, channel, message):
+        is_interaction = False
+        if channel == "speech_recognized":
+            system.messaging.post("processing_speech", True)
+            speaker = message.get("speaker", None)
+            event = INTERACTION_HISTORY.SpeechRecognisedEvent(
+                message["text"], speaker=speaker, id=message.get("id", None)
+            )
+            for active_history in INTERACTION_HISTORY.InteractionHistory.get_registered(
+                "TTS"
+            ):
+                active_history.add_to_memory(event)
+            log.info(f"{speaker if speaker else 'User'}: {message['text']}")
+            await speech_queue.put(message["text"])
+            is_interaction = True
+
+        if channel == "speech_recognized":
+            system.messaging.post("processing_speech", False)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
