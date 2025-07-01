@@ -62,7 +62,7 @@ async def robot_say(text: str) -> None:
         _tts_done.clear()
         try:
             _tts_client.send_api("say", text=text, voice="Amy", engine="Service Proxy")
-            await asyncio.wait_for(_tts_done.wait(), timeout=10)
+            await asyncio.wait_for(_tts_done.wait(), timeout=3)
             return
         except Exception:
             print("[WARN] Failed to use TTS client")
