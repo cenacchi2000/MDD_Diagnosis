@@ -54,10 +54,16 @@ answer options are spoken aloud with text-to-speech and replies are captured
 from the `speech_recognized` event stream, so there is no console input during
 assessments.
 
-When running on the robot the script switches the chat system to "silent" mode
-only **after** the patient confirms they want to proceed. This prevents random
-conversation from interrupting the questionnaires. The previous mode is
-restored when the program finishes.
+
+When running on the robot the script no longer switches the chat system to
+"silent" mode. Questions are asked in normal conversation mode throughout the
+assessment so that answers are captured without interruption.
+
+After greeting the patient the program collects demographic details such as
+name, birth date and occupation. Once those questions are completed Ameca asks
+whether to proceed with the assessment questionnaires. Only if the patient
+agrees do the pain and mood inventories begin.
+
 
 Set `USE_LLM=1` to let an external language model rephrase prompts before
 speaking them.  By default the exact questionnaire text is used.
