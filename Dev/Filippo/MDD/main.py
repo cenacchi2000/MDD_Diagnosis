@@ -246,12 +246,29 @@ async def run_all_assessments(pid: str) -> None:
             return
         await func()
 
-async def main():
+async def _run_assessment() -> None:
+    """Run the demographic questions and all questionnaires."""
     pid = await collect_demographics()
     if not pid:
         return
     await run_all_assessments(pid)
     await say_with_llm("All assessments completed.")
+
+
+async def main() -> None:
+    """Entry point for the assessment.
+
+    Applies the LLM patch and sets the required environment variable so the
+    language model does not respond with unscripted text when running the
+    assessment directly from the command line.
+    """
+    _patch_llm_decider_mode()
+    os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
+
+    try:
+        await _run_assessment()
+    finally:
+        os.environ.pop("MDD_ASSESSMENT_ACTIVE", None)
 
 class Activity:
     def on_start(self):
