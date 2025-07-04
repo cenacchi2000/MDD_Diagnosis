@@ -41,6 +41,7 @@ recorded:
 ```bash
 sqlite3 patient_responses.db ".tables"
 sqlite3 patient_responses.db "SELECT * FROM patient_demographics LIMIT 5;"
+sqlite3 patient_responses.db "SELECT * FROM conversation_history LIMIT 5;"
 ```
 
 

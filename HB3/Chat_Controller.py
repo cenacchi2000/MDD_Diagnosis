@@ -1,4 +1,5 @@
 from typing import List, Optional
+import datetime
 
 """
 System
@@ -39,6 +40,7 @@ CHAT_SYSTEM_TYPE = CONFIG["CHAT_SYSTEM_TYPE"]
 MODES_CONFIG_LIB = system.import_library("./modes_config.py")
 
 VOICE_ID_UTIL = system.import_library("./Perception/lib/voice_id_util.py")
+REMOTE_STORAGE = system.import_library("../Dev/Filippo/MDD/remote_storage.py")
 
 default_voice_reset_evt = system.event("default_voice_reset")
 
@@ -131,6 +133,16 @@ class Activity:
             ):
                 active_history.add_to_memory(event)
             log.info(f"{speaker if speaker else 'User'}: {message['text']}")
+            try:
+                REMOTE_STORAGE.send_to_server(
+                    "conversation_history",
+                    timestamp=datetime.datetime.now().isoformat(),
+                    speaker=speaker or "user",
+                    text=message["text"],
+                    id=message.get("id") or "",
+                )
+            except Exception:
+                pass
             is_interaction = True
 
         if channel == "non_verbal_interaction_trigger":
