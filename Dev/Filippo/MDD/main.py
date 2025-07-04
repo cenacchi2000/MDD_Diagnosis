@@ -224,6 +224,7 @@ class Activity:
         global PREVIOUS_MODE
         PREVIOUS_MODE = mode_ctrl.ModeController.get_current_mode_name() or "interaction"
 
+        os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
         self._task = robot_state.start_response_task(main())
 
     def on_stop(self):
@@ -234,6 +235,8 @@ class Activity:
 
         if PREVIOUS_MODE is not None and system.messaging is not None:
             system.messaging.post("mode_change", PREVIOUS_MODE)
+
+        os.environ.pop("MDD_ASSESSMENT_ACTIVE", None)
 
 
     def on_pause(self):

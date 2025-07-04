@@ -1,4 +1,6 @@
 from typing import List, Optional
+import datetime
+import os
 
 """
 System
@@ -39,6 +41,7 @@ CHAT_SYSTEM_TYPE = CONFIG["CHAT_SYSTEM_TYPE"]
 MODES_CONFIG_LIB = system.import_library("./modes_config.py")
 
 VOICE_ID_UTIL = system.import_library("./Perception/lib/voice_id_util.py")
+REMOTE_STORAGE = system.import_library("../Dev/Filippo/MDD/remote_storage.py")
 
 default_voice_reset_evt = system.event("default_voice_reset")
 
@@ -131,7 +134,18 @@ class Activity:
             ):
                 active_history.add_to_memory(event)
             log.info(f"{speaker if speaker else 'User'}: {message['text']}")
-            is_interaction = True
+            try:
+                REMOTE_STORAGE.send_to_server(
+                    "conversation_history",
+                    timestamp=datetime.datetime.now().isoformat(),
+                    speaker=speaker or "user",
+                    text=message["text"],
+                    id=message.get("id") or "",
+                )
+            except Exception:
+                pass
+            if os.environ.get("MDD_ASSESSMENT_ACTIVE") != "1":
+                is_interaction = True
 
         if channel == "non_verbal_interaction_trigger":
             event = INTERACTION_HISTORY.NonVerbalInteractionEvent(message)
@@ -148,7 +162,9 @@ class Activity:
             if message.get("type", "") == "session_active":
                 self.telepresence_started = message.get("value", False)
 
-        if self.mode_controller is not None:
+        if self.mode_controller is not None and not (
+            os.environ.get("MDD_ASSESSMENT_ACTIVE") == "1" and channel == "speech_recognized"
+        ):
             await self.mode_controller.on_message(channel, message)
         elif is_interaction:
             await self.react_to_interaction(message)
