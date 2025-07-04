@@ -51,6 +51,7 @@ robot_state = ROBOT_STATE.state
 speech_queue: asyncio.Queue[str] = asyncio.Queue()
 
 
+
 async def _send_history_async(**data: Any) -> None:
     """Send recognised speech to the backend without blocking."""
 
@@ -58,6 +59,7 @@ async def _send_history_async(**data: Any) -> None:
         await asyncio.to_thread(remote_storage.send_to_server, "conversation_history", **data)
     except Exception:
         pass
+
 
 
 def _patch_llm_decider_mode() -> None:
@@ -259,7 +261,9 @@ class Activity:
         global PREVIOUS_MODE
         PREVIOUS_MODE = mode_ctrl.ModeController.get_current_mode_name() or "interaction"
 
+
         _patch_llm_decider_mode()
+
         os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
         self._task = robot_state.start_response_task(main())
 
@@ -301,14 +305,18 @@ class Activity:
             ):
                 active_history.add_to_memory(event)
             log.info(f"{speaker if speaker else 'User'}: {message['text']}")
+
             asyncio.create_task(
                 _send_history_async(
+
                     timestamp=datetime.datetime.now().isoformat(),
                     speaker=speaker or "user",
                     text=message["text"],
                     id=message.get("id") or "",
                 )
+
             )
+
             await speech_queue.put(message["text"])
             is_interaction = True
 
