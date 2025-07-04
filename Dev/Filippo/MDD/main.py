@@ -250,7 +250,9 @@ class Activity:
         global PREVIOUS_MODE
         PREVIOUS_MODE = mode_ctrl.ModeController.get_current_mode_name() or "interaction"
 
+
         _patch_llm_decider_mode()
+
         os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
         self._task = robot_state.start_response_task(main())
 
