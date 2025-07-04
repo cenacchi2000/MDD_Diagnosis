@@ -108,6 +108,13 @@ TABLE_SCHEMAS = {
             question_text TEXT,
             answer TEXT,
             score INTEGER
+        )''',
+    'conversation_history': '''
+        CREATE TABLE IF NOT EXISTS conversation_history (
+            timestamp TEXT,
+            speaker TEXT,
+            text TEXT,
+            id TEXT
         )'''
 }
 
