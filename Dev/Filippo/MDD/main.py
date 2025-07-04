@@ -55,11 +55,6 @@ async def listen() -> str:
         return await speech_queue.get()
     return await robot_listen()
 
-# Use the default LLM interface if available
-try:
-    llm = system.import_library("../../../HB3/lib/llm/llm_interface.py")
-except Exception:
-    llm = None
 
 BeckDepression = system.import_library("./BeckDepression.py")
 bpi_inventory = system.import_library("./bpi_inventory.py")
@@ -70,8 +65,6 @@ oswestry_disability_index = system.import_library("./oswestry_disability_index.p
 pain_catastrophizing = system.import_library("./pain_catastrophizing.py")
 pittsburgh_sleep = system.import_library("./pittsburgh_sleep.py")
 
-# Disable language model rephrasing unless explicitly requested
-USE_LLM = os.environ.get("USE_LLM", "0") not in {"0", "false", "no"}
 
 
 # Previous chat mode so we can restore it after assessments
@@ -79,24 +72,13 @@ PREVIOUS_MODE: str | None = None
 
 
 async def say_with_llm(text: str) -> None:
-    """Speak text, optionally expanded through the LLM."""
-    if USE_LLM and llm is not None:
-        try:
-            messages = [
-                {"role": "system", "content": "You are Ameca, an empathetic healthcare assistant."},
-                {"role": "user", "content": f"Please say the following to the patient: {text}"},
-            ]
-            resp = await llm.run_chat(model="gpt-4o", messages=messages)
-            if resp and resp.get("content"):
-                text = resp["content"]
-        except Exception:
-            pass
+    """Speak text directly without using the language model."""
     await robot_say(text)
 
 
 async def ask(question: str, key: str, store: dict, *, numeric: bool = False) -> str:
     """Ask a question and record the user's spoken answer."""
-    await say_with_llm(question)
+    await robot_say(question)
 
     ans = await listen()
 
@@ -118,7 +100,7 @@ def store_demographics(pid: str, data: dict) -> None:
     remote_storage.send_to_server("patient_demographics", patient_id=pid, **data)
 
 async def collect_demographics() -> str | None:
-    await say_with_llm("Welcome to the Pain & Mood Assessment System")
+    await robot_say("Welcome to the Pain & Mood Assessment System")
     answers: dict[str, str] = {}
 
     last = await ask("Please tell me your last name", "name_last", answers)
@@ -185,7 +167,7 @@ async def collect_demographics() -> str | None:
     demog["date"] = datetime.date.today().strftime("%d/%m/%Y")
     store_demographics(patient_id, demog)
 
-    await say_with_llm(
+    await robot_say(
         f"Hi {first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
     )
 
@@ -202,7 +184,7 @@ async def collect_demographics() -> str | None:
 
 async def confirm(prompt: str) -> bool:
     """Ask the user whether to proceed with the given prompt."""
-    await say_with_llm(prompt)
+    await robot_say(prompt)
     ans = (await listen()).lower()
     return ans in {"yes", "y"}
 
