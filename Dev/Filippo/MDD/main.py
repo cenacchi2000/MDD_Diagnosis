@@ -2,6 +2,7 @@ import asyncio
 import uuid
 import os
 import datetime
+from typing import Any
 
 try:
     system  # type: ignore[name-defined]
@@ -48,6 +49,80 @@ ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
 robot_state = ROBOT_STATE.state
 
 speech_queue: asyncio.Queue[str] = asyncio.Queue()
+
+
+async def _send_history_async(**data: Any) -> None:
+    """Send recognised speech to the backend without blocking."""
+
+    try:
+        await asyncio.to_thread(remote_storage.send_to_server, "conversation_history", **data)
+    except Exception:
+        pass
+
+
+def _patch_chat_controller() -> None:
+    """Prevent LLM processing of recognised speech during assessments."""
+
+    try:
+        chat_mod = system.import_library("../../../HB3/Chat_Controller.py")
+    except Exception:
+        return
+
+    if getattr(chat_mod, "_mdd_patch_applied", False):
+        return
+
+    original_on_message = chat_mod.ChatController.on_message
+
+    async def patched_on_message(self, channel: str, message: Any):
+        if channel == "speech_recognized" and os.environ.get("MDD_ASSESSMENT_ACTIVE"):
+            system.messaging.post("processing_speech", True)
+            speaker = message.get("speaker")
+            event = INTERACTION_HISTORY.SpeechRecognisedEvent(
+                message["text"], speaker=speaker, id=message.get("id")
+            )
+            for active_history in INTERACTION_HISTORY.InteractionHistory.get_registered("TTS"):
+                active_history.add_to_memory(event)
+            log.info(f"{speaker if speaker else 'User'}: {message['text']}")
+            asyncio.create_task(
+                _send_history_async(
+                    timestamp=datetime.datetime.now().isoformat(),
+                    speaker=speaker or "user",
+                    text=message["text"],
+                    id=message.get("id") or "",
+                )
+            )
+            await speech_queue.put(message["text"])
+            system.messaging.post("processing_speech", False)
+            return
+        await original_on_message(self, channel, message)
+
+    chat_mod.ChatController.on_message = patched_on_message
+    chat_mod._mdd_patch_applied = True
+
+
+def _patch_llm_decider_mode() -> None:
+    """Prevent unscripted LLM replies during assessments without
+    modifying files outside this folder."""
+
+    try:
+        llm_mod = system.import_library(
+            "../../../HB3/chat/modes/llm_decider_mode.py"
+        )
+    except Exception:
+        return
+
+    if getattr(llm_mod, "_mdd_patch_applied", False):
+        return
+
+    original_on_message = llm_mod.LLMDeciderMode.on_message
+
+    async def patched_on_message(self, channel: str, message: Any):
+        if channel == "speech_recognized" and os.environ.get("MDD_ASSESSMENT_ACTIVE"):
+            return
+        return await original_on_message(self, channel, message)
+
+    llm_mod.LLMDeciderMode.on_message = patched_on_message
+    llm_mod._mdd_patch_applied = True
 
 async def listen() -> str:
     """Return the next recognized speech string from the queue or ASR."""
@@ -224,6 +299,9 @@ class Activity:
         global PREVIOUS_MODE
         PREVIOUS_MODE = mode_ctrl.ModeController.get_current_mode_name() or "interaction"
 
+        _patch_chat_controller()
+        _patch_llm_decider_mode()
+        os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
         self._task = robot_state.start_response_task(main())
 
     def on_stop(self):
@@ -234,6 +312,8 @@ class Activity:
 
         if PREVIOUS_MODE is not None and system.messaging is not None:
             system.messaging.post("mode_change", PREVIOUS_MODE)
+
+        os.environ.pop("MDD_ASSESSMENT_ACTIVE", None)
 
 
     def on_pause(self):
@@ -262,6 +342,14 @@ class Activity:
             ):
                 active_history.add_to_memory(event)
             log.info(f"{speaker if speaker else 'User'}: {message['text']}")
+            asyncio.create_task(
+                _send_history_async(
+                    timestamp=datetime.datetime.now().isoformat(),
+                    speaker=speaker or "user",
+                    text=message["text"],
+                    id=message.get("id") or "",
+                )
+            )
             await speech_queue.put(message["text"])
             is_interaction = True
 
