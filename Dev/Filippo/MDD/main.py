@@ -62,6 +62,47 @@ async def _send_history_async(**data: Any) -> None:
 
 
 
+def _patch_chat_controller() -> None:
+    """Prevent LLM processing of recognised speech during assessments."""
+
+    try:
+        chat_mod = system.import_library("../../../HB3/Chat_Controller.py")
+    except Exception:
+        return
+
+    if getattr(chat_mod, "_mdd_patch_applied", False):
+        return
+
+    original_on_message = chat_mod.ChatController.on_message
+
+    async def patched_on_message(self, channel: str, message: Any):
+        if channel == "speech_recognized" and os.environ.get("MDD_ASSESSMENT_ACTIVE"):
+            system.messaging.post("processing_speech", True)
+            speaker = message.get("speaker")
+            event = INTERACTION_HISTORY.SpeechRecognisedEvent(
+                message["text"], speaker=speaker, id=message.get("id")
+            )
+            for active_history in INTERACTION_HISTORY.InteractionHistory.get_registered("TTS"):
+                active_history.add_to_memory(event)
+            log.info(f"{speaker if speaker else 'User'}: {message['text']}")
+            asyncio.create_task(
+                _send_history_async(
+                    timestamp=datetime.datetime.now().isoformat(),
+                    speaker=speaker or "user",
+                    text=message["text"],
+                    id=message.get("id") or "",
+                )
+            )
+            await speech_queue.put(message["text"])
+            system.messaging.post("processing_speech", False)
+            return
+        await original_on_message(self, channel, message)
+
+    chat_mod.ChatController.on_message = patched_on_message
+    chat_mod._mdd_patch_applied = True
+
+
+
 def _patch_llm_decider_mode() -> None:
     """Prevent unscripted LLM replies during assessments without
     modifying files outside this folder."""
@@ -262,6 +303,7 @@ class Activity:
         PREVIOUS_MODE = mode_ctrl.ModeController.get_current_mode_name() or "interaction"
 
 
+        _patch_chat_controller()
         _patch_llm_decider_mode()
 
         os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
@@ -316,6 +358,7 @@ class Activity:
                 )
 
             )
+
 
             await speech_queue.put(message["text"])
             is_interaction = True
