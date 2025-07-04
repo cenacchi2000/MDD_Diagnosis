@@ -51,6 +51,17 @@ robot_state = ROBOT_STATE.state
 speech_queue: asyncio.Queue[str] = asyncio.Queue()
 
 
+
+async def _send_history_async(**data: Any) -> None:
+    """Send recognised speech to the backend without blocking."""
+
+    try:
+        await asyncio.to_thread(remote_storage.send_to_server, "conversation_history", **data)
+    except Exception:
+        pass
+
+
+
 def _patch_llm_decider_mode() -> None:
     """Prevent unscripted LLM replies during assessments without
     modifying files outside this folder."""
@@ -294,16 +305,18 @@ class Activity:
             ):
                 active_history.add_to_memory(event)
             log.info(f"{speaker if speaker else 'User'}: {message['text']}")
-            try:
-                remote_storage.send_to_server(
-                    "conversation_history",
+
+            asyncio.create_task(
+                _send_history_async(
+
                     timestamp=datetime.datetime.now().isoformat(),
                     speaker=speaker or "user",
                     text=message["text"],
                     id=message.get("id") or "",
                 )
-            except Exception:
-                pass
+
+            )
+
             await speech_queue.put(message["text"])
             is_interaction = True
 
