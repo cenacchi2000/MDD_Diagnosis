@@ -2,6 +2,7 @@ import asyncio
 import uuid
 import os
 import datetime
+from typing import Any
 
 try:
     system  # type: ignore[name-defined]
@@ -48,6 +49,31 @@ ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
 robot_state = ROBOT_STATE.state
 
 speech_queue: asyncio.Queue[str] = asyncio.Queue()
+
+
+def _patch_llm_decider_mode() -> None:
+    """Prevent unscripted LLM replies during assessments without
+    modifying files outside this folder."""
+
+    try:
+        llm_mod = system.import_library(
+            "../../../HB3/chat/modes/llm_decider_mode.py"
+        )
+    except Exception:
+        return
+
+    if getattr(llm_mod, "_mdd_patch_applied", False):
+        return
+
+    original_on_message = llm_mod.LLMDeciderMode.on_message
+
+    async def patched_on_message(self, channel: str, message: Any):
+        if channel == "speech_recognized" and os.environ.get("MDD_ASSESSMENT_ACTIVE"):
+            return
+        return await original_on_message(self, channel, message)
+
+    llm_mod.LLMDeciderMode.on_message = patched_on_message
+    llm_mod._mdd_patch_applied = True
 
 async def listen() -> str:
     """Return the next recognized speech string from the queue or ASR."""
@@ -223,6 +249,9 @@ class Activity:
 
         global PREVIOUS_MODE
         PREVIOUS_MODE = mode_ctrl.ModeController.get_current_mode_name() or "interaction"
+
+
+        _patch_llm_decider_mode()
 
         os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
         self._task = robot_state.start_response_task(main())
