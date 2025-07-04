@@ -58,7 +58,9 @@ assessments.
 
 When running on the robot the script no longer switches the chat system to
 "silent" mode. Questions are asked in normal conversation mode throughout the
-assessment so that answers are captured without interruption.
+assessment so that answers are captured without interruption.  The activity sets
+the environment variable `MDD_ASSESSMENT_ACTIVE=1` while running so other
+components can detect that a questionnaire session is in progress.
 
 After greeting the patient the program collects demographic details such as
 name, birth date and occupation. Once those questions are completed Ameca asks
