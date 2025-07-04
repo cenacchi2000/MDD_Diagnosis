@@ -100,7 +100,7 @@ async def ask(question: str, key: str, store: dict, *, numeric: bool = False) ->
 
     ans = await listen()
 
-    await robot_say("Thank you.")
+    await say_with_llm("Thank you.")
     if numeric:
         ans = ans.lower()
         ans = {
@@ -192,12 +192,12 @@ async def collect_demographics() -> str | None:
     proceed = (await listen()).lower()
 
     if proceed not in {"yes", "y"}:
-        await robot_say(
+        await say_with_llm(
             "No problem, thank you for your answer I will ask my human colleague overstep."
         )
         return None
 
-    await robot_say("Thank you, let's continue.")
+    await say_with_llm("Thank you, let's continue.")
     return patient_id
 
 async def confirm(prompt: str) -> bool:
@@ -223,7 +223,7 @@ async def run_all_assessments(pid: str) -> None:
 
     for name, func in assessments:
         if not await confirm(f"Would you like to begin the {name}? (Yes/No)"):
-            await robot_say("Okay, stopping further assessments.")
+            await say_with_llm("Okay, stopping further assessments.")
             return
         await func()
 
@@ -232,7 +232,7 @@ async def main():
     if not pid:
         return
     await run_all_assessments(pid)
-    await robot_say("All assessments completed.")
+    await say_with_llm("All assessments completed.")
 
 class Activity:
     def on_start(self):
