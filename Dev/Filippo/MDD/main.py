@@ -2,6 +2,7 @@ import asyncio
 import uuid
 import os
 import datetime
+import re
 from typing import Any
 
 try:
@@ -56,6 +57,47 @@ robot_state = ROBOT_STATE.state
 speech_queue: asyncio.Queue[str] = asyncio.Queue()
 # Future used by ask() to wait for the next recognised utterance
 answer_future: asyncio.Future[str] | None = None
+
+
+async def _run_pactl(*args: str):
+    process = await asyncio.create_subprocess_exec(
+        "pactl",
+        *args,
+        env={"PULSE_RUNTIME_PATH": "/tmp/pulseaudio"},
+        stderr=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+    )
+    await process.wait()
+    return process
+
+
+async def _get_volume() -> int:
+    try:
+        proc = await _run_pactl("get-sink-volume", "@DEFAULT_SINK@")
+        out = (await proc.stdout.read(4096)).decode()
+        m = re.search(r"front-left: (\d+) /", out)
+        if m:
+            return round(int(m.group(1)) / 65536 * 100)
+    except Exception:
+        pass
+    return 0
+
+
+async def _set_volume(level: int) -> None:
+    try:
+        await _run_pactl(
+            "set-sink-volume",
+            "@DEFAULT_SINK@",
+            str(level * 65536 // 100),
+        )
+    except Exception:
+        pass
+
+
+async def ensure_volume(min_level: int = 50) -> None:
+    current = await _get_volume()
+    if current and current < min_level:
+        await _set_volume(min_level)
 
 
 
@@ -303,6 +345,7 @@ async def main() -> None:
     """
     _patch_llm_decider_mode()
     os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
+    await ensure_volume(50)
 
     try:
         await _run_assessment()
