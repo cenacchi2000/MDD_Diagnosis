@@ -190,13 +190,14 @@ async def ask(question: str, key: str, store: dict, *, numeric: bool = False) ->
         except asyncio.QueueEmpty:
             break
 
-    await robot_say(question)
+
 
     ans = ""
     while not ans:
         ans = (await wait_for_answer()).strip()
         if not ans:
             await robot_say("I didn't catch that, please repeat.")
+
 
     await say_with_llm("Thank you.")
     if numeric:
