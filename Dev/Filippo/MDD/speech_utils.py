@@ -1,4 +1,5 @@
 import asyncio
+import re
 from typing import Optional
 
 try:
@@ -29,6 +30,47 @@ _tts_engine: Optional[object] = None
 _recognizer: Optional[object] = None
 
 
+async def _run_pactl(*args: str):
+    process = await asyncio.create_subprocess_exec(
+        "pactl",
+        *args,
+        env={"PULSE_RUNTIME_PATH": "/tmp/pulseaudio"},
+        stderr=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+    )
+    await process.wait()
+    return process
+
+
+async def _get_volume() -> int:
+    try:
+        proc = await _run_pactl("get-sink-volume", "@DEFAULT_SINK@")
+        out = (await proc.stdout.read(4096)).decode()
+        m = re.search(r"front-left: (\d+) /", out)
+        if m:
+            return round(int(m.group(1)) / 65536 * 100)
+    except Exception:
+        pass
+    return 0
+
+
+async def _set_volume(level: int) -> None:
+    try:
+        await _run_pactl(
+            "set-sink-volume",
+            "@DEFAULT_SINK@",
+            str(level * 65536 // 100),
+        )
+    except Exception:
+        pass
+
+
+async def ensure_volume(min_level: int = 50) -> None:
+    current = await _get_volume()
+    if current and current < min_level:
+        await _set_volume(min_level)
+
+
 async def _ensure_tts():
     global _tts_client, _tts_done, _tts_engine
     if _tts_client is None and Client is not None and getattr(system, "unstable", None):
@@ -57,12 +99,14 @@ async def robot_say(text: str) -> None:
     """Speak through the robot's TTS with console fallback."""
     print(f"[Ameca]: {text}")
 
+    await ensure_volume(50)
     await _ensure_tts()
     if _tts_client is not None and _tts_done is not None:
         _tts_done.clear()
         try:
             _tts_client.send_api("say", text=text, voice="Amy", engine="Service Proxy")
-            await asyncio.wait_for(_tts_done.wait(), timeout=3)
+            timeout = max(3.0, len(text) * 0.2)
+            await asyncio.wait_for(_tts_done.wait(), timeout=timeout)
             return
         except Exception:
 
