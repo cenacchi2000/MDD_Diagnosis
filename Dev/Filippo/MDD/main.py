@@ -49,6 +49,8 @@ ROBOT_STATE = system.import_library("../../../HB3/robot_state.py")
 robot_state = ROBOT_STATE.state
 
 speech_queue: asyncio.Queue[str] = asyncio.Queue()
+# Future used by ask() to wait for the next recognised utterance
+answer_future: asyncio.Future[str] | None = None
 
 
 
@@ -88,9 +90,21 @@ def _patch_llm_decider_mode() -> None:
 
 async def listen() -> str:
     """Return the next recognized speech string from the queue or ASR."""
+
     if system.messaging is not None:
         return await speech_queue.get()
     return await robot_listen()
+
+
+async def wait_for_answer() -> str:
+    """Return the next recognised speech and clear the waiting future."""
+    global answer_future
+    loop = asyncio.get_running_loop()
+    answer_future = loop.create_future()
+    try:
+        return await answer_future
+    finally:
+        answer_future = None
 
 
 BeckDepression = system.import_library("./BeckDepression.py")
@@ -115,9 +129,21 @@ async def say_with_llm(text: str) -> None:
 
 async def ask(question: str, key: str, store: dict, *, numeric: bool = False) -> str:
     """Ask a question and record the user's spoken answer."""
+
+    # Clear any leftover utterances from the previous answer
+    while not speech_queue.empty():
+        try:
+            speech_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
     await robot_say(question)
 
-    ans = await listen()
+    ans = ""
+    while not ans:
+        ans = (await wait_for_answer()).strip()
+        if not ans:
+            await robot_say("I didn't catch that, please repeat.")
 
     await say_with_llm("Thank you.")
     if numeric:
@@ -335,6 +361,8 @@ class Activity:
             )
 
             await speech_queue.put(message["text"])
+            if answer_future is not None and not answer_future.done():
+                answer_future.set_result(message["text"])
             is_interaction = True
 
         if channel == "speech_recognized":
