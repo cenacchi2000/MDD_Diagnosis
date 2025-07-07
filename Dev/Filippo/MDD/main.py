@@ -220,11 +220,13 @@ def store_demographics(pid: str, data: dict) -> None:
 async def collect_demographics() -> str | None:
     answers: dict[str, str] = {}
 
+
     last = await ask(
         "Welcome to the Pain & Mood Assessment System. What is your last name?",
         "name_last",
         answers,
     )
+
     first = await ask(
         "Thank you for your answer, what is your first name?",
         "name_first",
@@ -260,12 +262,14 @@ async def collect_demographics() -> str | None:
     )
     await ask("Thank you for your answer, what professional degree if any?", "degree", answers)
     await ask("Thank you for your answer, what is your current occupation?", "occupation", answers)
+
     await ask(
         "Thank you for your answer, what is your spouse occupation if any?",
         "spouse_occupation",
         answers,
     )
     await ask(
+
         "Thank you for your answer, what is your job status: 1 full time, 2 part time, 3 homemaker, 4 retired, 5 unemployed, 6 other",
         "job_status",
         answers,
