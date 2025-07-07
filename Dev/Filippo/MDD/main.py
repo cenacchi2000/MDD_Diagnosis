@@ -39,6 +39,11 @@ robot_say = speech_utils.robot_say
 robot_listen = speech_utils.robot_listen
 
 remote_storage = system.import_library("./remote_storage.py")
+UTILS = system.import_library("../../../HB3/utils.py")
+SCRIPTS = [
+    "../../../HB3/Perception/Add_Speech.py",
+    "../../../HB3/Human_Animation/Anim_Talking_Sequence.py",
+]
 
 
 # Interaction history utilities and robot state
@@ -89,9 +94,8 @@ def _patch_llm_decider_mode() -> None:
     llm_mod._mdd_patch_applied = True
 
 
-async def listen() -> str:
+async def listen(timeout: float | None = None) -> str:
     """Return the next recognized speech string from the queue or ASR."""
-
 
     if system.messaging is not None:
         if timeout is None:
@@ -317,6 +321,11 @@ class Activity:
         _patch_llm_decider_mode()
 
         os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
+
+        self._scripts = []
+        for script in SCRIPTS:
+            self._scripts.append(UTILS.start_other_script(system, script))
+
         self._task = robot_state.start_response_task(main())
 
     def on_stop(self):
@@ -324,6 +333,9 @@ class Activity:
         if task and not task.done():
             task.cancel()
         # Restore normal interaction mode
+
+        for script in getattr(self, "_scripts", []):
+            UTILS.stop_other_script(system, script)
 
         if PREVIOUS_MODE is not None and system.messaging is not None:
             system.messaging.post("mode_change", PREVIOUS_MODE)
