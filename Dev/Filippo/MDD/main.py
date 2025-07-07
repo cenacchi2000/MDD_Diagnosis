@@ -86,10 +86,24 @@ def _patch_llm_decider_mode() -> None:
     llm_mod.LLMDeciderMode.on_message = patched_on_message
     llm_mod._mdd_patch_applied = True
 
-async def listen() -> str:
-    """Return the next recognized speech string from the queue or ASR."""
+async def listen(timeout: float | None = None) -> str:
+    """Return the next recognized speech string from the queue or ASR.
+
+    Parameters
+    ----------
+    timeout:
+        Maximum number of seconds to wait for recognised speech.  If the
+        timeout expires, an empty string is returned.  This prevents the
+        questionnaire from stalling indefinitely if no speech is detected.
+    """
+
     if system.messaging is not None:
-        return await speech_queue.get()
+        if timeout is None:
+            return await speech_queue.get()
+        try:
+            return await asyncio.wait_for(speech_queue.get(), timeout)
+        except asyncio.TimeoutError:
+            return ""
     return await robot_listen()
 
 
@@ -115,9 +129,26 @@ async def say_with_llm(text: str) -> None:
 
 async def ask(question: str, key: str, store: dict, *, numeric: bool = False) -> str:
     """Ask a question and record the user's spoken answer."""
+
+    # Clear any leftover utterances from the previous answer
+    while not speech_queue.empty():
+        try:
+            speech_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
     await robot_say(question)
 
-    ans = await listen()
+    # Give the ASR a moment to capture and queue the robot's speech
+    await asyncio.sleep(0.5)
+
+    while not speech_queue.empty():
+        try:
+            speech_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
+    ans = await listen(timeout=10)
 
     await say_with_llm("Thank you.")
     if numeric:
