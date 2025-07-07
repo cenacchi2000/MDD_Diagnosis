@@ -88,11 +88,18 @@ def _patch_llm_decider_mode() -> None:
     llm_mod.LLMDeciderMode.on_message = patched_on_message
     llm_mod._mdd_patch_applied = True
 
+
 async def listen() -> str:
     """Return the next recognized speech string from the queue or ASR."""
 
+
     if system.messaging is not None:
-        return await speech_queue.get()
+        if timeout is None:
+            return await speech_queue.get()
+        try:
+            return await asyncio.wait_for(speech_queue.get(), timeout)
+        except asyncio.TimeoutError:
+            return ""
     return await robot_listen()
 
 
@@ -139,11 +146,13 @@ async def ask(question: str, key: str, store: dict, *, numeric: bool = False) ->
 
     await robot_say(question)
 
+
     ans = ""
     while not ans:
         ans = (await wait_for_answer()).strip()
         if not ans:
             await robot_say("I didn't catch that, please repeat.")
+
 
     await say_with_llm("Thank you.")
     if numeric:
