@@ -191,13 +191,18 @@ async def ask(question: str, key: str, store: dict, *, numeric: bool = False) ->
             break
 
 
-    await say_with_llm(question)
 
-    ans = ""
-    while not ans:
-        ans = (await robot_listen()).strip()
-        if not ans:
-            await robot_say("I didn't catch that, please repeat.")
+    # Give the ASR a moment to capture and queue the robot's speech
+    await asyncio.sleep(0.5)
+
+    while not speech_queue.empty():
+        try:
+            speech_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
+    ans = await listen(timeout=10)
+
 
     await say_with_llm("Thank you.")
     if numeric:
