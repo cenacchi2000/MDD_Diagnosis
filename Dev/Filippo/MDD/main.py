@@ -183,6 +183,8 @@ async def say_with_llm(text: str) -> None:
 async def ask(question: str, key: str, store: dict, *, numeric: bool = False) -> str:
     """Ask a question and record the user's spoken answer."""
 
+    await robot_say(question)
+
     # Clear any leftover utterances from the previous answer
     while not speech_queue.empty():
         try:
@@ -199,7 +201,6 @@ async def ask(question: str, key: str, store: dict, *, numeric: bool = False) ->
             await robot_say("I didn't catch that, please repeat.")
 
 
-    await say_with_llm("Thank you.")
     if numeric:
         ans = ans.lower()
         ans = {
@@ -217,68 +218,107 @@ def store_demographics(pid: str, data: dict) -> None:
     remote_storage.send_to_server("patient_demographics", patient_id=pid, **data)
 
 async def collect_demographics() -> str | None:
-    await robot_say("Welcome to the Pain & Mood Assessment System")
     answers: dict[str, str] = {}
 
-    last = await ask("Please tell me your last name", "name_last", answers)
-    first = await ask("What is your first name?", "name_first", answers)
+    last = await ask(
+        "Welcome to the Pain & Mood Assessment System. What is your last name?",
+        "name_last",
+        answers,
+    )
+    first = await ask(
+        "Thank you for your answer, what is your first name?",
+        "name_first",
+        answers,
+    )
 
     patient_id = os.environ.get("patient_id", f"PAT-{uuid.uuid4().hex[:8]}")
     answers["patient_id"] = patient_id
 
-
-
-    await ask("Middle initial if any", "name_middle", answers)
-    await ask("Phone number", "phone", answers)
-    await ask("Sex, M or F", "sex", answers)
-    await ask("Date of birth in DD/MM/YYYY format", "dob", answers)
     await ask(
-        "Marital Status: 1 for Single, 2 for Married, 3 for Widowed, 4 for Separated or Divorced",
+        "Thank you for your answer, what is your middle initial, if any?",
+        "name_middle",
+        answers,
+    )
+    await ask("Thank you for your answer, what is your phone number?", "phone", answers)
+    await ask("Thank you for your answer, what is your sex, M or F?", "sex", answers)
+    await ask(
+        "Thank you for your answer, what is your date of birth in DD/MM/YYYY format?",
+        "dob",
+        answers,
+    )
+    await ask(
+        "Thank you for your answer, what is your marital status: 1 for Single, 2 for Married, 3 for Widowed, 4 for Separated or Divorced",
         "marital_status",
         answers,
         numeric=True,
     )
     await ask(
-        "Highest grade completed, enter 0 to 16 or M.A./M.S.",
+        "Thank you for your answer, what is the highest grade completed? Enter 0 to 16 or M.A./M.S.",
         "education",
         answers,
         numeric=True,
     )
-    await ask("Professional degree if any", "degree", answers)
-    await ask("Current occupation", "occupation", answers)
-    await ask("Spouse occupation if any", "spouse_occupation", answers)
+    await ask("Thank you for your answer, what professional degree if any?", "degree", answers)
+    await ask("Thank you for your answer, what is your current occupation?", "occupation", answers)
     await ask(
-        "Job status: 1 full time, 2 part time, 3 homemaker, 4 retired, 5 unemployed, 6 other",
+        "Thank you for your answer, what is your spouse occupation if any?",
+        "spouse_occupation",
+        answers,
+    )
+    await ask(
+        "Thank you for your answer, what is your job status: 1 full time, 2 part time, 3 homemaker, 4 retired, 5 unemployed, 6 other",
         "job_status",
         answers,
         numeric=True,
     )
-    await ask("How many months since diagnosis?", "diagnosis_time", answers, numeric=True)
-    await ask("Pain due to present disease? 1 yes, 2 no, 3 uncertain", "disease_pain", answers, numeric=True)
-    await ask("Was pain a symptom at diagnosis? 1 yes, 2 no, 3 uncertain", "pain_symptom", answers, numeric=True)
-    surgery = await ask("Surgery in the past month? 1 yes, 2 no", "surgery", answers, numeric=True)
+    await ask(
+        "Thank you for your answer, how many months since diagnosis?",
+        "diagnosis_time",
+        answers,
+        numeric=True,
+    )
+    await ask(
+        "Thank you for your answer, pain due to present disease? 1 yes, 2 no, 3 uncertain",
+        "disease_pain",
+        answers,
+        numeric=True,
+    )
+    await ask(
+        "Thank you for your answer, was pain a symptom at diagnosis? 1 yes, 2 no, 3 uncertain",
+        "pain_symptom",
+        answers,
+        numeric=True,
+    )
+    surgery = await ask(
+        "Thank you for your answer, surgery in the past month? 1 yes, 2 no",
+        "surgery",
+        answers,
+        numeric=True,
+    )
     if surgery == "1":
-        await ask("What kind of surgery?", "surgery_type", answers)
+        await ask("Thank you for your answer, what kind of surgery?", "surgery_type", answers)
     else:
         answers["surgery_type"] = ""
     await ask(
-        "Experienced pain other than minor types last week? 1 yes, 2 no",
+        "Thank you for your answer, experienced pain other than minor types last week? 1 yes, 2 no",
         "other_pain",
         answers,
         numeric=True,
     )
     await ask(
-        "Taken pain medication in the last 7 days? 1 yes, 2 no",
+        "Thank you for your answer, taken pain medication in the last 7 days? 1 yes, 2 no",
         "pain_med_week",
         answers,
         numeric=True,
     )
     await ask(
-        "Do you need daily pain medication? 1 yes, 2 no",
+        "Thank you for your answer, do you need daily pain medication? 1 yes, 2 no",
         "pain_med_daily",
         answers,
         numeric=True,
     )
+
+    await say_with_llm("Thank you for your answer.")
 
     demog = dict(answers)
     demog["date"] = datetime.date.today().strftime("%d/%m/%Y")
