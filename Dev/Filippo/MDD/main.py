@@ -193,7 +193,6 @@ async def ask(question: str, key: str, store: dict, *, numeric: bool = False) ->
 
     await say_with_llm(question)
 
-
     ans = ""
     while not ans:
         ans = (await robot_listen()).strip()
