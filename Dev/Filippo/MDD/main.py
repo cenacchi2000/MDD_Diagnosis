@@ -129,7 +129,20 @@ async def say_with_llm(text: str) -> None:
 
 async def ask(question: str, key: str, store: dict, *, numeric: bool = False) -> str:
     """Ask a question and record the user's spoken answer."""
+
+    # Clear any leftover utterances from the previous answer
+    while not speech_queue.empty():
+        try:
+            speech_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
     await robot_say(question)
+
+
+    # Give the ASR a moment to capture and queue the robot's speech
+    await asyncio.sleep(0.5)
+
 
     while not speech_queue.empty():
         try:
