@@ -105,7 +105,7 @@ async def robot_say(text: str) -> None:
         _tts_done.clear()
         try:
             _tts_client.send_api("say", text=text, voice="Amy", engine="Service Proxy")
-            timeout = max(3.0, len(text) * 0.2)
+            timeout = min(max(2.0, len(text) * 0.07), 8.0)
             await asyncio.wait_for(_tts_done.wait(), timeout=timeout)
             return
         except Exception:
