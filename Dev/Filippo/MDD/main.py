@@ -214,7 +214,8 @@ async def ask(question: str, key: str, store: dict, *, numeric: bool = False) ->
     return ans
 
 def store_demographics(pid: str, data: dict) -> None:
-    remote_storage.send_to_server("patient_demographics", patient_id=pid, **data)
+    # `data` already contains the patient_id, avoid passing it twice
+    remote_storage.send_to_server("patient_demographics", **data)
 
 async def collect_demographics() -> str | None:
     answers: dict[str, str] = {}
