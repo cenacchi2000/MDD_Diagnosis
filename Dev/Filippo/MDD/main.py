@@ -112,8 +112,7 @@ async def _send_history_async(**data: Any) -> None:
 
 
 def _patch_llm_decider_mode() -> None:
-    """Prevent unscripted LLM replies during assessments without
-    modifying files outside this folder."""
+    """Prevent unscripted LLM replies during assessments."""
 
     try:
         llm_mod = system.import_library(
@@ -222,13 +221,13 @@ async def collect_demographics() -> str | None:
 
 
     last = await ask(
-        "Welcome to the Pain & Mood Assessment System. What is your last name?",
+        "Welcome to the Pain & Mood Assessment System, today I will ask you a few questions to understand how you are feeling. Lets start, what is your last name?",
         "name_last",
         answers,
     )
 
     first = await ask(
-        "Thank you for your answer, what is your first name?",
+        "Thank you very much for your answer, and what is your first name?",
         "name_first",
         answers,
     )
@@ -237,110 +236,105 @@ async def collect_demographics() -> str | None:
     answers["patient_id"] = patient_id
 
     await ask(
-        "Thank you for your answer, what is your middle initial, if any?",
-        "name_middle",
+        "Thank you for your answer, what is the reason for your visit to the clinic today?",
+        "reason_visit",
         answers,
     )
-    await ask("Thank you for your answer, what is your phone number?", "phone", answers)
-    await ask("Thank you for your answer, what is your sex, M or F?", "sex", answers)
+    await ask("Thank you for your answer, then before we start let me ask you some demographic questions. Lets start with in which country were you born?", "country_of_origin", answers)
+    await ask("Thank you for your answer, what is your gender?                          Please feel free to answer that you wish to not specify", "gender", answers)
     await ask(
-        "Thank you for your answer, what is your date of birth in DD/MM/YYYY format?",
+        "Thank you for your answer, what is your date of birth?",
         "dob",
         answers,
     )
     await ask(
-        "Thank you for your answer, what is your marital status: 1 for Single, 2 for Married, 3 for Widowed, 4 for Separated or Divorced",
+        "Thank you for your answer, what is your marital status? Please answer one of the following: Single, In a Relationship, Married, Widowed, Separated or Divorced",
         "marital_status",
         answers,
         numeric=True,
     )
     await ask(
-        "Thank you for your answer, what is the highest grade completed? Enter 0 to 16 or M.A./M.S.",
+        "Thank you for your very much for your answers just a few more questions. What is the highest grade of education you have completed?",
         "education",
         answers,
         numeric=True,
     )
-    await ask("Thank you for your answer, what professional degree if any?", "degree", answers)
-    await ask("Thank you for your answer, what is your current occupation?", "occupation", answers)
+
+    await ask("Thank you and what is your current occupation?", "occupation", answers)
 
     await ask(
-        "Thank you for your answer, what is your spouse occupation if any?",
-        "spouse_occupation",
-        answers,
-    )
-    await ask(
 
-        "Thank you for your answer, what is your job status: 1 full time, 2 part time, 3 homemaker, 4 retired, 5 unemployed, 6 other",
+        "Thank you for your answer, what is your job status: Full time, Part time, Retired, Unemployed or Other",
         "job_status",
         answers,
         numeric=True,
     )
     await ask(
-        "Thank you for your answer, how many months since diagnosis?",
+        "Ok! Thank you very much for all of your answers, Lets dive in into the clinical assessment. I will start with a few questions about your pain conditions. When were you first diagnosed with pain",
         "diagnosis_time",
         answers,
         numeric=True,
     )
     await ask(
-        "Thank you for your answer, pain due to present disease? 1 yes, 2 no, 3 uncertain",
+        "I the current pain due to a present disease that you have?",
         "disease_pain",
         answers,
         numeric=True,
     )
     await ask(
-        "Thank you for your answer, was pain a symptom at diagnosis? 1 yes, 2 no, 3 uncertain",
+        "Was pain a symptom at diagnosis?",
         "pain_symptom",
         answers,
         numeric=True,
     )
     surgery = await ask(
-        "Thank you for your answer, surgery in the past month? 1 yes, 2 no",
+        "Did you have a surgery in the past month? please answer yes or no",
         "surgery",
         answers,
         numeric=True,
     )
-    if surgery == "1":
-        await ask("Thank you for your answer, what kind of surgery?", "surgery_type", answers)
+    if surgery == "Yes":
+        await ask("Thank you for your answer, what kind of surgery did you do?", "surgery_type", answers)
     else:
         answers["surgery_type"] = ""
     await ask(
-        "Thank you for your answer, experienced pain other than minor types last week? 1 yes, 2 no",
+        "Thank you for your answer, Did you experience any pain other than minor episodes last week?",
         "other_pain",
         answers,
         numeric=True,
     )
     await ask(
-        "Thank you for your answer, taken pain medication in the last 7 days? 1 yes, 2 no",
+        "Ok, and have you taken any pain medication in the last 7 days?",
         "pain_med_week",
         answers,
         numeric=True,
     )
     await ask(
-        "Thank you for your answer, do you need daily pain medication? 1 yes, 2 no",
+        "Perfect and last question, do you need or are prescribed any daily pain medication?",
         "pain_med_daily",
         answers,
         numeric=True,
     )
 
-    await say_with_llm("Thank you for your answer.")
+    await say_with_llm("Ok all done with the intial questions, You did great! I got all the data I needed to remember you next time, thank you for your time and for your collaboration so far.")
 
     demog = dict(answers)
     demog["date"] = datetime.date.today().strftime("%d/%m/%Y")
     store_demographics(patient_id, demog)
 
     await robot_say(
-        f"Hi {first}, nice to meet you. Today we will do a short interview to understand how you are feeling. Can I proceed with the assessment?"
+        f"So {first}, in order for me to assess your case I will ask you some questions that will allow me to locate and evaluate the pain and possible comorbid symptoms. Please let me know if I can proceed with the assessment?"
     )
 
     proceed = (await listen()).lower()
 
     if proceed not in {"yes", "y"}:
         await say_with_llm(
-            "No problem, thank you for your answer I will ask my human colleague overstep."
+            "No problem, thank you for your answers and for your time so far, I will now ask my human colleague to overstep."
         )
         return None
 
-    await say_with_llm("Thank you, let's continue.")
+    await say_with_llm("Let's continue then.")
     return patient_id
 
 async def confirm(prompt: str) -> bool:
@@ -365,7 +359,7 @@ async def run_all_assessments(pid: str) -> None:
     ]
 
     for name, func in assessments:
-        if not await confirm(f"Would you like to begin the {name}? (Yes/No)"):
+        if not await confirm(f"Perfect, I have completed the {name} assessment. Can I continue with the next assessment?"):
             await say_with_llm("Okay, stopping further assessments.")
             return
         await func()
