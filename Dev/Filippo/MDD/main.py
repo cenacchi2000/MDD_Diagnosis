@@ -214,10 +214,12 @@ async def ask(question: str, key: str, store: dict, *, numeric: bool = False) ->
     return ans
 
 def store_demographics(pid: str, data: dict) -> None:
+
     """Store demographics for ``pid`` ensuring the ID is included once."""
     payload = dict(data)
     payload["patient_id"] = pid
     remote_storage.send_to_server("patient_demographics", **payload)
+
 
 async def collect_demographics() -> str | None:
     answers: dict[str, str] = {}
