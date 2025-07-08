@@ -381,6 +381,8 @@ async def main() -> None:
     assessment directly from the command line.
     """
     _patch_llm_decider_mode()
+    if "patient_id" not in os.environ:
+        os.environ["patient_id"] = f"PAT-{uuid.uuid4().hex[:8]}"
     os.environ["MDD_ASSESSMENT_ACTIVE"] = "1"
     await ensure_volume(50)
 

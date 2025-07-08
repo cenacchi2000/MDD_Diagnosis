@@ -46,6 +46,11 @@ def send_to_server(table: str, **data) -> None:
     If the server cannot be reached, the data is stored locally in
     ``patient_responses.db`` instead of emitting repeated warnings.
     """
+    if table == "conversation_history" and "patient_id" not in data:
+        pid = os.environ.get("patient_id")
+        if pid:
+            data["patient_id"] = pid
+
     payload = json.dumps({"table": table, **data}).encode("utf-8")
     if SERVER_URL:
         req = request.Request(

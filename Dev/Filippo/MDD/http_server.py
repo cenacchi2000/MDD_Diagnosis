@@ -114,6 +114,7 @@ TABLE_SCHEMAS = {
             timestamp TEXT,
             speaker TEXT,
             text TEXT,
+            patient_id TEXT,
             id TEXT
         )'''
 }

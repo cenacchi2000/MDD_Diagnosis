@@ -44,6 +44,11 @@ sqlite3 patient_responses.db "SELECT * FROM patient_demographics LIMIT 5;"
 sqlite3 patient_responses.db "SELECT * FROM conversation_history LIMIT 5;"
 ```
 
+The `conversation_history` table now stores a `patient_id` column so that each
+spoken utterance is linked to the active patient session.  Set the environment
+variable `patient_id` before running or allow the script to generate a random
+identifier automatically.
+
 
 The first command shows all tables created by the server.  You can then run
 standard SQLite queries to inspect the contents and confirm that data was saved.
@@ -85,6 +90,9 @@ already contains a record with the same first and last name, that existing ID is
 reused so repeated visits are linked to the correct patient.  To run any
 questionnaire independently you can set the environment variable `patient_id`
 before execution.
+
+This identifier is also used to tag entries in the `conversation_history` table
+so that spoken answers can be viewed per patient.
 
 To skip collection of demographic details entirely, set `AUTO_MODE=1` when
 running `main.py`.  In this mode a random patient ID is generated (unless
