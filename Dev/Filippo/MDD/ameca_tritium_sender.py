@@ -4,7 +4,9 @@ This module runs inside the Tritium environment and forwards mouth viseme
 weights, **mouth openness**, head orientation and blink events to the Live Link
 bridge running on an Unreal Engine machine. When loaded as a Tritium
 ``Activity`` it exposes a run button in the IDE; it can also be launched as a
-standalone script.
+standalone script. Ensure the standard Ameca control stack (e.g. ``Chat_Controller.py``
+and ``HB3_Controller.py``) is running so that head pose, blinking and visemes
+are populated by the robot.
 
 
 Usage examples::
@@ -79,8 +81,23 @@ def _resolve_hosts(host: str) -> List[str]:
     return ips
 
 
-def run(hosts: Iterable[str], port: int) -> None:
-    """Start streaming head pose and viseme data to the bridge."""
+def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
+    """Start streaming head pose and viseme data to the bridge.
+
+    Parameters
+    ----------
+    hosts:
+        Iterable of destination IP addresses for the Unreal bridge.
+    port:
+        UDP port on which the bridge is listening.
+    block:
+        When ``True`` the function will block the current thread after
+        registering the tick callback. This is useful when executing the
+        module as a standalone script. Tritium's activity runtime supplies
+        its own loop, so ``Activity.on_start`` sets ``block=False`` to avoid
+        hanging the IDE.
+    """
+
     global robot_state, head_yaw, head_pitch, head_roll
 
     if robot_state is None:
@@ -143,7 +160,19 @@ def run(hosts: Iterable[str], port: int) -> None:
             send({"type": "gesture", "name": "blink"})
         blink_state = robot_state.blinking
 
-    system.run()
+    if block:
+        run_fn = getattr(system, "run", None)
+        if callable(run_fn):
+            run_fn()
+        else:  # pragma: no cover - real Tritium runtime drives the loop
+            import time
+
+            try:
+                while True:
+                    time.sleep(3600)
+            except KeyboardInterrupt:
+                pass
+
 
 
 class Activity:
@@ -154,7 +183,7 @@ class Activity:
         self.port = port
 
     def on_start(self) -> None:
-        run(_resolve_hosts(self.host), self.port)
+        run(_resolve_hosts(self.host), self.port, block=False)
 
 
 
