@@ -4,8 +4,14 @@ This module runs inside the Tritium environment and forwards mouth viseme
 weights, head orientation and blink events to the Live Link bridge running on
 an Unreal Engine machine.
 
-Usage:
-    python ameca_tritium_sender.py --host 127.0.0.1 --port 8210
+Usage examples::
+
+    # Stream to the bridge on a specific machine
+    python ameca_tritium_sender.py --host 10.63.3.105 --port 8210
+
+    # Try both loopback and the host's LAN address
+    python ameca_tritium_sender.py --host auto
+
 
 The bridge script (``ameca_livelink_bridge.py``) must be running on the
 specified host and port. In Unreal, select subject ``AmecaBridge`` in the Live
@@ -15,7 +21,9 @@ Link panel for your MetaHuman avatar.
 import argparse
 import json
 import socket
-from typing import Dict
+
+from typing import Dict, Iterable, List
+
 
 # Map Tritium viseme names to Live Link phoneme identifiers
 VISEME_MAP = {
@@ -44,16 +52,51 @@ head_pitch = system.control("Head Pitch", "Mesmer Neck 1", acquire=["position"])
 head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
 
 
-def run(host: str, port: int) -> None:
+
+def _resolve_hosts(host: str) -> List[str]:
+    """Return a list of destination IPs.
+
+    ``host`` may be a comma separated list. If the token ``"auto"`` is present,
+    the function expands it to include both the loopback address and the
+    primary LAN address of the machine running the script. This helps when the
+    exact Unreal Engine IP is unknown: one of the addresses will usually be
+    correct.
+    """
+
+    parts = [h.strip() for h in host.split(",") if h.strip()]
+    ips: List[str] = []
+
+    if "auto" in parts:
+        parts.remove("auto")
+        ips.append("127.0.0.1")
+        try:
+            hostname_ips = socket.gethostbyname_ex(socket.gethostname())[2]
+            for ip in hostname_ips:
+                if ip not in ips:
+                    ips.append(ip)
+        except socket.gaierror:
+            pass
+
+    ips.extend(parts)
+    return ips
+
+
+def run(hosts: Iterable[str], port: int) -> None:
     """Start streaming head pose and viseme data to the bridge."""
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    dest = (host, port)
+    dests = [(h, port) for h in hosts]
+    print("Streaming to:", ", ".join(f"{h}:{port}" for h in hosts))
+
+
     mouth = system.unstable.owner.mouth_driver
     blink_state = False
 
     def send(payload: Dict[str, float | str]) -> None:
-        sock.sendto(json.dumps(payload).encode(), dest)
+        data = json.dumps(payload).encode()
+        for dest in dests:
+            sock.sendto(data, dest)
+
 
     @system.tick(fps=60)
     def stream() -> None:
@@ -87,10 +130,18 @@ def run(host: str, port: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Stream Ameca facial data to Unreal Live Link")
-    parser.add_argument("--host", default="127.0.0.1", help="IP address of ameca_livelink_bridge")
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help=(
+            "Destination IP of ameca_livelink_bridge. Accepts a comma-separated"
+            " list. Use 'auto' to send to both loopback and the machine's LAN IP"
+        ),
+    )
     parser.add_argument("--port", type=int, default=8210, help="UDP port of the bridge")
     args = parser.parse_args()
-    run(args.host, args.port)
+    run(_resolve_hosts(args.host), args.port)
+
 
 
 if __name__ == "__main__":
