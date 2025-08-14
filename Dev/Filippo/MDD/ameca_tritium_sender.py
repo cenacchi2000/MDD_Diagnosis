@@ -2,7 +2,9 @@
 
 This module runs inside the Tritium environment and forwards mouth viseme
 weights, **mouth openness**, head orientation and blink events to the Live Link
-bridge running on an Unreal Engine machine.
+bridge running on an Unreal Engine machine. When loaded as a Tritium
+``Activity`` it exposes a run button in the IDE; it can also be launched as a
+standalone script.
 
 Usage examples::
 
