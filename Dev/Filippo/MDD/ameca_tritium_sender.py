@@ -6,6 +6,7 @@ bridge running on an Unreal Engine machine. When loaded as a Tritium
 ``Activity`` it exposes a run button in the IDE; it can also be launched as a
 standalone script.
 
+
 Usage examples::
 
     # Stream to the bridge on a specific machine
@@ -14,10 +15,12 @@ Usage examples::
     # Try both loopback and the host's LAN address
     python ameca_tritium_sender.py --host auto
 
+
 The bridge script (``ameca_livelink_bridge.py``) must be running on the
 specified host and port. In Unreal, select subject ``AmecaBridge`` in the Live
 Link panel for your MetaHuman avatar.
 """
+
 
 
 import argparse
@@ -45,6 +48,7 @@ VISEME_MAP = {
 
 robot_state = None
 head_yaw = head_pitch = head_roll = None
+
 
 
 def _resolve_hosts(host: str) -> List[str]:
@@ -85,14 +89,17 @@ def run(hosts: Iterable[str], port: int) -> None:
         except Exception as exc:  # pragma: no cover - fails if run outside Tritium
             raise RuntimeError("robot_state unavailable; run inside Tritium") from exc
 
+
     if head_yaw is None:
         head_yaw = system.control("Head Yaw", "Mesmer Neck 1", acquire=["position"])
         head_pitch = system.control("Head Pitch", "Mesmer Neck 1", acquire=["position"])
         head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
 
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dests = [(h, port) for h in hosts]
     print("Streaming to:", ", ".join(f"{h}:{port}" for h in hosts))
+
 
     mouth = system.unstable.owner.mouth_driver
     blink_state = False
@@ -101,6 +108,7 @@ def run(hosts: Iterable[str], port: int) -> None:
         data = json.dumps(payload).encode()
         for dest in dests:
             sock.sendto(data, dest)
+
 
     @system.tick(fps=60)
     def stream() -> None:
@@ -130,6 +138,7 @@ def run(hosts: Iterable[str], port: int) -> None:
             # Mouth driver exposes [0,2] range; Live Link expects [0,1]
             send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
 
+
         if robot_state.blinking and not blink_state:
             send({"type": "gesture", "name": "blink"})
         blink_state = robot_state.blinking
@@ -146,6 +155,7 @@ class Activity:
 
     def on_start(self) -> None:
         run(_resolve_hosts(self.host), self.port)
+
 
 
 def main() -> None:
