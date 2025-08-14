@@ -217,8 +217,15 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         # Forward all other MixDemandHub facial channels so the avatar can mirror
         # nose, brow, eyelid and gaze motion.  The demand name itself is sent as
         # the channel identifier; downstream consumers can remap as needed.
-        for (demand, _board), value in head_vals.items():
-            if any(demand.startswith(prefix) for prefix in FACIAL_PREFIXES):
+        for key, value in head_vals.items():
+            try:
+                demand = key[0]
+            except Exception:
+                logger.debug("Unexpected key format from mix_pose: %s", key)
+                demand = str(key)
+            if isinstance(demand, str) and any(
+                demand.startswith(prefix) for prefix in FACIAL_PREFIXES
+            ):
                 send({"type": "blendshape", "name": demand, "value": float(value)})
 
 
