@@ -4,8 +4,13 @@ This module runs inside the Tritium environment and forwards mouth viseme
 weights, head orientation and blink events to the Live Link bridge running on
 an Unreal Engine machine.
 
-Usage:
-    python ameca_tritium_sender.py --host 127.0.0.1 --port 8210
+Usage examples::
+
+    # Stream to the bridge on a specific machine
+    python ameca_tritium_sender.py --host 10.63.3.105 --port 8210
+
+    # Try both loopback and the host's LAN address
+    python ameca_tritium_sender.py --host auto
 
 The bridge script (``ameca_livelink_bridge.py``) must be running on the
 specified host and port. In Unreal, select subject ``AmecaBridge`` in the Live
@@ -47,23 +52,28 @@ head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
 def _resolve_hosts(host: str) -> List[str]:
     """Return a list of destination IPs.
 
-    If ``host`` is ``"auto"`` the function returns both the loopback address
-    and the primary LAN address of the machine running the script. This helps
-    when the exact Unreal Engine IP is unknown: one of the addresses will
-    usually be correct.
+    ``host`` may be a comma separated list. If the token ``"auto"`` is present,
+    the function expands it to include both the loopback address and the
+    primary LAN address of the machine running the script. This helps when the
+    exact Unreal Engine IP is unknown: one of the addresses will usually be
+    correct.
     """
 
-    if host != "auto":
-        return [host]
+    parts = [h.strip() for h in host.split(",") if h.strip()]
+    ips: List[str] = []
 
-    ips = ["127.0.0.1"]
-    try:
-        hostname_ips = socket.gethostbyname_ex(socket.gethostname())[2]
-        for ip in hostname_ips:
-            if ip not in ips:
-                ips.append(ip)
-    except socket.gaierror:
-        pass
+    if "auto" in parts:
+        parts.remove("auto")
+        ips.append("127.0.0.1")
+        try:
+            hostname_ips = socket.gethostbyname_ex(socket.gethostname())[2]
+            for ip in hostname_ips:
+                if ip not in ips:
+                    ips.append(ip)
+        except socket.gaierror:
+            pass
+
+    ips.extend(parts)
     return ips
 
 
@@ -118,8 +128,8 @@ def main() -> None:
         "--host",
         default="127.0.0.1",
         help=(
-            "IP address of ameca_livelink_bridge, or 'auto' to send to both "
-            "loopback and the machine's LAN IP"
+            "Destination IP of ameca_livelink_bridge. Accepts a comma-separated"
+            " list. Use 'auto' to send to both loopback and the machine's LAN IP"
         ),
     )
     parser.add_argument("--port", type=int, default=8210, help="UDP port of the bridge")
