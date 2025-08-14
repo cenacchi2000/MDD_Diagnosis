@@ -112,10 +112,14 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         head_pitch = system.control("Head Pitch", "Mesmer Neck 1", acquire=["position"])
         head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
 
-
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dests = [(h, port) for h in hosts]
     print("Streaming to:", ", ".join(f"{h}:{port}" for h in hosts))
+    if all(h.startswith("127.") for h in hosts):
+        print(
+            "WARNING: only streaming to loopback. If Unreal runs on another machine,"
+            " supply its IP with --host"
+        )
 
 
     mouth = system.unstable.owner.mouth_driver
@@ -178,7 +182,6 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
                     time.sleep(3600)
             except KeyboardInterrupt:
                 pass
-
 
 
 class Activity:
