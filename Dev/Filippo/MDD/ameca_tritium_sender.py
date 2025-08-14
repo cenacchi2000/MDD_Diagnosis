@@ -1,8 +1,8 @@
 """Send Ameca viseme and head pose data to Unreal Live Link.
 
 This module runs inside the Tritium environment and forwards mouth viseme
-weights, head orientation and blink events to the Live Link bridge running on
-an Unreal Engine machine.
+weights, **mouth openness**, head orientation and blink events to the Live Link
+bridge running on an Unreal Engine machine.
 
 Usage examples::
 
@@ -163,6 +163,11 @@ def run(hosts: Iterable[str], port: int) -> None:
                 phoneme = VISEME_MAP.get(name)
                 if phoneme:
                     send({"type": "viseme", "name": phoneme, "weight": float(weight)})
+
+        open_amt = getattr(mouth, "mouth_open", 0.0)
+        if open_amt > 0.01:
+            # Mouth driver exposes [0,2] range; Live Link expects [0,1]
+            send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
 
         if robot_state.blinking and not blink_state:
             send({"type": "gesture", "name": "blink"})
