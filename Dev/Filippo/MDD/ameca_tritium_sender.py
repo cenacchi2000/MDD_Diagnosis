@@ -12,6 +12,7 @@ Usage examples::
     # Try both loopback and the host's LAN address
     python ameca_tritium_sender.py --host auto
 
+
 The bridge script (``ameca_livelink_bridge.py``) must be running on the
 specified host and port. In Unreal, select subject ``AmecaBridge`` in the Live
 Link panel for your MetaHuman avatar.
@@ -20,7 +21,9 @@ Link panel for your MetaHuman avatar.
 import argparse
 import json
 import socket
+
 from typing import Dict, Iterable, List
+
 
 # Map Tritium viseme names to Live Link phoneme identifiers
 VISEME_MAP = {
@@ -47,6 +50,7 @@ robot_state = system.import_library("../../../HB3/robot_state.py").state
 head_yaw = system.control("Head Yaw", "Mesmer Neck 1", acquire=["position"])
 head_pitch = system.control("Head Pitch", "Mesmer Neck 1", acquire=["position"])
 head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
+
 
 
 def _resolve_hosts(host: str) -> List[str]:
@@ -84,6 +88,7 @@ def run(hosts: Iterable[str], port: int) -> None:
     dests = [(h, port) for h in hosts]
     print("Streaming to:", ", ".join(f"{h}:{port}" for h in hosts))
 
+
     mouth = system.unstable.owner.mouth_driver
     blink_state = False
 
@@ -91,6 +96,7 @@ def run(hosts: Iterable[str], port: int) -> None:
         data = json.dumps(payload).encode()
         for dest in dests:
             sock.sendto(data, dest)
+
 
     @system.tick(fps=60)
     def stream() -> None:
@@ -135,6 +141,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8210, help="UDP port of the bridge")
     args = parser.parse_args()
     run(_resolve_hosts(args.host), args.port)
+
 
 
 if __name__ == "__main__":
