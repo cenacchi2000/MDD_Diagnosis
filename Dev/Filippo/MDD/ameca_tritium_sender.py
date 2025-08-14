@@ -2,7 +2,9 @@
 
 This module runs inside the Tritium environment and forwards mouth viseme
 weights, **mouth openness**, head orientation and blink events to the Live Link
-bridge running on an Unreal Engine machine.
+bridge running on an Unreal Engine machine. When loaded as a Tritium
+``Activity`` it exposes a run button in the IDE; it can also be launched as a
+standalone script.
 
 
 Usage examples::
@@ -19,14 +21,12 @@ specified host and port. In Unreal, select subject ``AmecaBridge`` in the Live
 Link panel for your MetaHuman avatar.
 """
 
-import system  # type: ignore  # Provided by the Tritium runtime
 
 
 import argparse
 import json
 import socket
 from typing import Dict, Iterable, List
-
 
 # Map Tritium viseme names to Live Link phoneme identifiers
 VISEME_MAP = {
@@ -144,6 +144,18 @@ def run(hosts: Iterable[str], port: int) -> None:
         blink_state = robot_state.blinking
 
     system.run()
+
+
+class Activity:
+    """Tritium activity entry point providing a run button in the IDE."""
+
+    def __init__(self, host: str = "auto", port: int = 8210) -> None:
+        self.host = host
+        self.port = port
+
+    def on_start(self) -> None:
+        run(_resolve_hosts(self.host), self.port)
+
 
 
 def main() -> None:
