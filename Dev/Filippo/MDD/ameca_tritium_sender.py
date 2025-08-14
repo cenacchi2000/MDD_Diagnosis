@@ -80,6 +80,7 @@ FACIAL_PREFIXES: tuple[str, ...] = (
 
 
 
+
 def _resolve_hosts(host: str) -> List[str]:
     """Return a list of destination IPs.
 
@@ -162,6 +163,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
     mouth = system.unstable.owner.mouth_driver
     blink_state = False
     speech_state = False
+
     logger.debug("Initial mouth driver: %s", mouth)
 
     def send(payload: Dict[str, float | str]) -> None:
@@ -177,6 +179,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
     @system.tick(fps=60)
     def stream() -> None:
         nonlocal mouth, blink_state, speech_state
+
         global mix_pose
         if mouth is None:
             logger.debug("Mouth driver not set; attempting to reacquire")
@@ -218,6 +221,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
             if any(demand.startswith(prefix) for prefix in FACIAL_PREFIXES):
                 send({"type": "blendshape", "name": demand, "value": float(value)})
 
+
         for name, weight in mouth.viseme_demands.items():
             logger.debug("Viseme %s weight %s", name, weight)
             if weight > 0.01:
@@ -248,6 +252,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         if robot_state.speaking != speech_state:
             send({"type": "speech", "speaking": bool(robot_state.speaking)})
             speech_state = robot_state.speaking
+
 
     if block:
         logger.debug("Blocking execution; entering runtime loop")
