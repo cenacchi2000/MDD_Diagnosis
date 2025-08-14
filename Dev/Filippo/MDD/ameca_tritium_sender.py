@@ -1,8 +1,9 @@
 """Send Ameca viseme and head pose data to Unreal Live Link.
 
 This module runs inside the Tritium environment and forwards mouth viseme
-weights, head orientation and blink events to the Live Link bridge running on
-an Unreal Engine machine.
+weights, **mouth openness**, head orientation and blink events to the Live Link
+bridge running on an Unreal Engine machine.
+
 
 Usage examples::
 
@@ -18,10 +19,54 @@ specified host and port. In Unreal, select subject ``AmecaBridge`` in the Live
 Link panel for your MetaHuman avatar.
 """
 
+try:
+    system  # type: ignore[name-defined]
+except NameError:  # pragma: no cover - executed locally
+    import builtins
+    import importlib.util
+    import inspect
+    import os
+
+    def _import_library(rel_path: str):
+        caller = inspect.stack()[1].filename
+        base_dir = os.path.dirname(os.path.abspath(caller))
+        abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+        module_name = os.path.splitext(os.path.basename(rel_path))[0]
+        spec = importlib.util.spec_from_file_location(module_name, abs_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load module from {abs_path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    class _LocalSystem:
+        import_library = staticmethod(_import_library)
+
+        def control(self, *_, **__):  # pragma: no cover - placeholder
+            raise RuntimeError("system.control unavailable outside Tritium")
+
+        def tick(self, fps: int = 60):  # pragma: no cover - placeholder
+            def decorator(func):
+                return func
+
+            return decorator
+
+        def run(self):  # pragma: no cover - placeholder
+            raise RuntimeError("system.run unavailable outside Tritium")
+
+        class unstable:  # pragma: no cover - placeholder
+            class owner:
+                mouth_driver = None
+
+    system = _LocalSystem()
+    builtins.system = system
+
+if not hasattr(system, "import_library"):
+    raise RuntimeError("system.import_library missing")
+
 import argparse
 import json
 import socket
-
 from typing import Dict, Iterable, List
 
 
@@ -43,13 +88,8 @@ VISEME_MAP = {
     "Viseme U": "UW",
 }
 
-# Access robot state for blink detection
-robot_state = system.import_library("../../../HB3/robot_state.py").state
-
-# Head control handles
-head_yaw = system.control("Head Yaw", "Mesmer Neck 1", acquire=["position"])
-head_pitch = system.control("Head Pitch", "Mesmer Neck 1", acquire=["position"])
-head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
+robot_state = None
+head_yaw = head_pitch = head_roll = None
 
 
 
@@ -83,6 +123,16 @@ def _resolve_hosts(host: str) -> List[str]:
 
 def run(hosts: Iterable[str], port: int) -> None:
     """Start streaming head pose and viseme data to the bridge."""
+    global robot_state, head_yaw, head_pitch, head_roll
+
+    if robot_state is None:
+        robot_state = system.import_library("../../../HB3/robot_state.py").state
+
+    if head_yaw is None:
+        head_yaw = system.control("Head Yaw", "Mesmer Neck 1", acquire=["position"])
+        head_pitch = system.control("Head Pitch", "Mesmer Neck 1", acquire=["position"])
+        head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
+
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dests = [(h, port) for h in hosts]
@@ -121,6 +171,12 @@ def run(hosts: Iterable[str], port: int) -> None:
                 if phoneme:
                     send({"type": "viseme", "name": phoneme, "weight": float(weight)})
 
+        open_amt = getattr(mouth, "mouth_open", 0.0)
+        if open_amt > 0.01:
+            # Mouth driver exposes [0,2] range; Live Link expects [0,1]
+            send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
+
+
         if robot_state.blinking and not blink_state:
             send({"type": "gesture", "name": "blink"})
         blink_state = robot_state.blinking
@@ -141,7 +197,6 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8210, help="UDP port of the bridge")
     args = parser.parse_args()
     run(_resolve_hosts(args.host), args.port)
-
 
 
 if __name__ == "__main__":
