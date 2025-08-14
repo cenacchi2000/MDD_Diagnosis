@@ -211,6 +211,9 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         roll += head_vals.get(("Neck Roll", "Mesmer Neck 1"), 0.0)
 
         pose_payload = {"type": "pose", "yaw": yaw, "pitch": pitch, "roll": roll}
+        if not any(abs(v) > 1e-6 for v in (yaw, pitch, roll)):
+            logger.debug("Pose values all zero; check head/neck sources")
+
         logger.debug("Pose payload: %s", pose_payload)
         send(pose_payload)
 
@@ -228,13 +231,16 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
             ):
                 send({"type": "blendshape", "name": demand, "value": float(value)})
 
+        viseme_values = list(mouth.viseme_demands.values())
+        if not any(viseme_values):
+            logger.debug("All viseme weights zero; is lipsync running?")
 
         for name, weight in mouth.viseme_demands.items():
             logger.debug("Viseme %s weight %s", name, weight)
-            if weight > 0.01:
-                phoneme = VISEME_MAP.get(name)
-                if phoneme:
-                    send({"type": "viseme", "name": phoneme, "weight": float(weight)})
+            phoneme = VISEME_MAP.get(name)
+            if phoneme:
+                send({"type": "viseme", "name": phoneme, "weight": float(weight)})
+
 
         open_amt = getattr(mouth, "mouth_open", 0.0)
         if callable(open_amt):  # ``mouth_open`` may be a @parameter partial
@@ -245,9 +251,9 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
                 open_amt = 0.0
 
         logger.debug("Mouth open amount: %s", open_amt)
-        if open_amt > 0.01:
-            # Mouth driver exposes [0,2] range; Live Link expects [0,1]
-            send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
+        # Mouth driver exposes [0,2] range; Live Link expects [0,1]
+        send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
+
 
 
         if robot_state.blinking and not blink_state:
