@@ -60,6 +60,7 @@ VISEME_MAP = {
 
 robot_state = None
 head_yaw = head_pitch = head_roll = None
+mix_pose = None
 
 
 
@@ -111,7 +112,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         hanging the IDE.
     """
 
-    global robot_state, head_yaw, head_pitch, head_roll
+    global robot_state, head_yaw, head_pitch, head_roll, mix_pose
 
     if robot_state is None:
         try:
@@ -128,6 +129,10 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         head_yaw = system.control("Head Yaw", "Mesmer Neck 1", acquire=["position"])
         head_pitch = system.control("Head Pitch", "Mesmer Neck 1", acquire=["position"])
         head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
+
+    if mix_pose is None:
+        mix_pose = getattr(system.unstable.owner, "mix_pose", None)
+        logger.debug("Initial mix_pose hub: %s", mix_pose)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dests = [(h, port) for h in hosts]
@@ -155,6 +160,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
     @system.tick(fps=60)
     def stream() -> None:
         nonlocal mouth, blink_state
+        global mix_pose
         if mouth is None:
             logger.debug("Mouth driver not set; attempting to reacquire")
             mouth = system.unstable.owner.mouth_driver
@@ -163,12 +169,29 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
                 logger.debug("Mouth driver still unavailable; skipping tick")
                 return
 
-        pose_payload = {
-            "type": "pose",
-            "yaw": head_yaw.position or 0.0,
-            "pitch": head_pitch.position or 0.0,
-            "roll": head_roll.position or 0.0,
-        }
+        head_vals: Dict[tuple[str, str], float] = {}
+        current_mix = mix_pose or getattr(system.unstable.owner, "mix_pose", None)
+        if current_mix is not None:
+            if mix_pose is None:
+                mix_pose = current_mix
+                logger.debug("Reacquired mix_pose hub: %s", mix_pose)
+            try:
+                head_vals = current_mix.get_values()
+                logger.debug(
+                    "mix_pose head/neck values: %s",
+                    {str(k): v for k, v in head_vals.items() if "Head" in k[0] or "Neck" in k[0]},
+                )
+            except Exception as exc:  # pragma: no cover - mix_pose may not be initialised
+                logger.exception("Failed to read mix_pose values: %s", exc)
+
+        yaw = head_vals.get(("Head Yaw", "Mesmer Neck 1"), head_yaw.position or 0.0)
+        pitch = head_vals.get(("Head Pitch", "Mesmer Neck 1"), head_pitch.position or 0.0)
+        pitch += head_vals.get(("Neck Pitch", "Mesmer Neck 1"), 0.0)
+        roll = head_vals.get(("Head Roll", "Mesmer Neck 1"), head_roll.position or 0.0)
+        roll += head_vals.get(("Neck Roll", "Mesmer Neck 1"), 0.0)
+
+        pose_payload = {"type": "pose", "yaw": yaw, "pitch": pitch, "roll": roll}
+
         logger.debug("Pose payload: %s", pose_payload)
         send(pose_payload)
 
