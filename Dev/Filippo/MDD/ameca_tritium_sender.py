@@ -4,6 +4,7 @@ This module runs inside the Tritium environment and forwards mouth viseme
 weights, **mouth openness**, head orientation and blink events to the Live Link
 bridge running on an Unreal Engine machine.
 
+
 Usage examples::
 
     # Stream to the bridge on a specific machine
@@ -11,6 +12,7 @@ Usage examples::
 
     # Try both loopback and the host's LAN address
     python ameca_tritium_sender.py --host auto
+
 
 The bridge script (``ameca_livelink_bridge.py``) must be running on the
 specified host and port. In Unreal, select subject ``AmecaBridge`` in the Live
@@ -67,6 +69,7 @@ import json
 import socket
 from typing import Dict, Iterable, List
 
+
 # Map Tritium viseme names to Live Link phoneme identifiers
 VISEME_MAP = {
     "Viseme A": "AA",
@@ -87,6 +90,7 @@ VISEME_MAP = {
 
 robot_state = None
 head_yaw = head_pitch = head_roll = None
+
 
 
 def _resolve_hosts(host: str) -> List[str]:
@@ -129,9 +133,11 @@ def run(hosts: Iterable[str], port: int) -> None:
         head_pitch = system.control("Head Pitch", "Mesmer Neck 1", acquire=["position"])
         head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
 
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dests = [(h, port) for h in hosts]
     print("Streaming to:", ", ".join(f"{h}:{port}" for h in hosts))
+
 
     mouth = system.unstable.owner.mouth_driver
     blink_state = False
@@ -140,6 +146,7 @@ def run(hosts: Iterable[str], port: int) -> None:
         data = json.dumps(payload).encode()
         for dest in dests:
             sock.sendto(data, dest)
+
 
     @system.tick(fps=60)
     def stream() -> None:
@@ -168,6 +175,7 @@ def run(hosts: Iterable[str], port: int) -> None:
         if open_amt > 0.01:
             # Mouth driver exposes [0,2] range; Live Link expects [0,1]
             send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
+
 
         if robot_state.blinking and not blink_state:
             send({"type": "gesture", "name": "blink"})
