@@ -191,6 +191,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         roll += head_vals.get(("Neck Roll", "Mesmer Neck 1"), 0.0)
 
         pose_payload = {"type": "pose", "yaw": yaw, "pitch": pitch, "roll": roll}
+
         logger.debug("Pose payload: %s", pose_payload)
         send(pose_payload)
 
