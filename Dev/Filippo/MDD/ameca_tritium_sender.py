@@ -8,6 +8,7 @@ standalone script. Ensure the standard Ameca control stack (e.g. ``Chat_Controll
 and ``HB3_Controller.py``) is running so that head pose, blinking and visemes
 are populated by the robot.
 
+
 Usage examples::
 
     # Stream to the bridge on a specific machine
@@ -20,6 +21,7 @@ The host and port can also be provided via ``LIVE_LINK_HOST`` and
 ``LIVE_LINK_PORT`` environment variables which is useful when launching the
 script via the Tritium IDE run button.
 
+
 The bridge script (``ameca_livelink_bridge.py``) must be running on the
 specified host and port. In Unreal, select subject ``AmecaBridge`` in the Live
 Link panel for your MetaHuman avatar.
@@ -29,6 +31,7 @@ Link panel for your MetaHuman avatar.
 import argparse
 import json
 import os
+
 import socket
 from typing import Dict, Iterable, List
 
@@ -52,6 +55,7 @@ VISEME_MAP = {
 
 robot_state = None
 head_yaw = head_pitch = head_roll = None
+
 
 
 def _resolve_hosts(host: str) -> List[str]:
@@ -98,6 +102,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         its own loop, so ``Activity.on_start`` sets ``block=False`` to avoid
         hanging the IDE.
     """
+
     global robot_state, head_yaw, head_pitch, head_roll
 
     if robot_state is None:
@@ -105,6 +110,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
             robot_state = system.import_library("../../../HB3/robot_state.py").state
         except Exception as exc:  # pragma: no cover - fails if run outside Tritium
             raise RuntimeError("robot_state unavailable; run inside Tritium") from exc
+
 
     if head_yaw is None:
         head_yaw = system.control("Head Yaw", "Mesmer Neck 1", acquire=["position"])
@@ -120,6 +126,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
             " supply its IP with --host"
         )
 
+
     mouth = system.unstable.owner.mouth_driver
     blink_state = False
 
@@ -127,6 +134,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         data = json.dumps(payload).encode()
         for dest in dests:
             sock.sendto(data, dest)
+
 
     @system.tick(fps=60)
     def stream() -> None:
@@ -157,9 +165,11 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
                 open_amt = open_amt()
             except Exception:
                 open_amt = 0.0
+
         if open_amt > 0.01:
             # Mouth driver exposes [0,2] range; Live Link expects [0,1]
             send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
+
 
         if robot_state.blinking and not blink_state:
             send({"type": "gesture", "name": "blink"})
@@ -190,8 +200,10 @@ class Activity:
         self.host = host or env_host
         self.port = port or env_port
 
+
     def on_start(self) -> None:
         run(_resolve_hosts(self.host), self.port, block=False)
+
 
 
 def main() -> None:
@@ -211,6 +223,7 @@ def main() -> None:
         default=int(os.environ.get("LIVE_LINK_PORT", "8210")),
         help="UDP port of the bridge (or LIVE_LINK_PORT env var)",
     )
+
     args = parser.parse_args()
     run(_resolve_hosts(args.host), args.port)
 
