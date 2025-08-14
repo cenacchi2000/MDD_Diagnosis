@@ -32,8 +32,13 @@ import argparse
 import json
 import os
 
+import logging
 import socket
 from typing import Dict, Iterable, List
+
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Map Tritium viseme names to Live Link phoneme identifiers
 VISEME_MAP = {
@@ -68,6 +73,7 @@ def _resolve_hosts(host: str) -> List[str]:
     correct.
     """
 
+    logger.debug("Resolving host string %s", host)
     parts = [h.strip() for h in host.split(",") if h.strip()]
     ips: List[str] = []
 
@@ -76,13 +82,15 @@ def _resolve_hosts(host: str) -> List[str]:
         ips.append("127.0.0.1")
         try:
             hostname_ips = socket.gethostbyname_ex(socket.gethostname())[2]
+            logger.debug("Discovered host IPs: %s", hostname_ips)
             for ip in hostname_ips:
                 if ip not in ips:
                     ips.append(ip)
-        except socket.gaierror:
-            pass
+        except socket.gaierror as exc:
+            logger.warning("Failed to resolve local host IPs: %s", exc)
 
     ips.extend(parts)
+    logger.debug("Resolved hosts: %s", ips)
     return ips
 
 
@@ -107,53 +115,65 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
 
     if robot_state is None:
         try:
+            logger.debug("Importing robot_state module")
             robot_state = system.import_library("../../../HB3/robot_state.py").state
+            logger.debug("robot_state imported successfully")
         except Exception as exc:  # pragma: no cover - fails if run outside Tritium
+            logger.exception("Failed to import robot_state")
             raise RuntimeError("robot_state unavailable; run inside Tritium") from exc
 
 
     if head_yaw is None:
+        logger.debug("Acquiring head control interfaces")
         head_yaw = system.control("Head Yaw", "Mesmer Neck 1", acquire=["position"])
         head_pitch = system.control("Head Pitch", "Mesmer Neck 1", acquire=["position"])
         head_roll = system.control("Head Roll", "Mesmer Neck 1", acquire=["position"])
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dests = [(h, port) for h in hosts]
-    print("Streaming to:", ", ".join(f"{h}:{port}" for h in hosts))
+    logger.info("Streaming to: %s", ", ".join(f"{h}:{port}" for h in hosts))
     if all(h.startswith("127.") for h in hosts):
-        print(
-            "WARNING: only streaming to loopback. If Unreal runs on another machine,"
-            " supply its IP with --host"
+        logger.warning(
+            "Only streaming to loopback. If Unreal runs on another machine, supply its IP with --host"
         )
 
 
     mouth = system.unstable.owner.mouth_driver
     blink_state = False
+    logger.debug("Initial mouth driver: %s", mouth)
 
     def send(payload: Dict[str, float | str]) -> None:
         data = json.dumps(payload).encode()
         for dest in dests:
-            sock.sendto(data, dest)
+            try:
+                logger.debug("Sending %s to %s", payload, dest)
+                sock.sendto(data, dest)
+            except OSError as exc:
+                logger.exception("Failed to send data to %s: %s", dest, exc)
 
 
     @system.tick(fps=60)
     def stream() -> None:
         nonlocal mouth, blink_state
         if mouth is None:
+            logger.debug("Mouth driver not set; attempting to reacquire")
             mouth = system.unstable.owner.mouth_driver
+            logger.debug("Reacquired mouth driver: %s", mouth)
             if mouth is None:
+                logger.debug("Mouth driver still unavailable; skipping tick")
                 return
 
-        send(
-            {
-                "type": "pose",
-                "yaw": head_yaw.position or 0.0,
-                "pitch": head_pitch.position or 0.0,
-                "roll": head_roll.position or 0.0,
-            }
-        )
+        pose_payload = {
+            "type": "pose",
+            "yaw": head_yaw.position or 0.0,
+            "pitch": head_pitch.position or 0.0,
+            "roll": head_roll.position or 0.0,
+        }
+        logger.debug("Pose payload: %s", pose_payload)
+        send(pose_payload)
 
         for name, weight in mouth.viseme_demands.items():
+            logger.debug("Viseme %s weight %s", name, weight)
             if weight > 0.01:
                 phoneme = VISEME_MAP.get(name)
                 if phoneme:
@@ -163,19 +183,24 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         if callable(open_amt):  # ``mouth_open`` may be a @parameter partial
             try:
                 open_amt = open_amt()
-            except Exception:
+            except Exception as exc:
+                logger.exception("Failed to read mouth_open: %s", exc)
                 open_amt = 0.0
 
+        logger.debug("Mouth open amount: %s", open_amt)
         if open_amt > 0.01:
             # Mouth driver exposes [0,2] range; Live Link expects [0,1]
             send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
 
 
         if robot_state.blinking and not blink_state:
+            logger.debug("Blink detected")
             send({"type": "gesture", "name": "blink"})
         blink_state = robot_state.blinking
+        logger.debug("Blink state: %s", blink_state)
 
     if block:
+        logger.debug("Blocking execution; entering runtime loop")
         run_fn = getattr(system, "run", None)
         if callable(run_fn):
             run_fn()
@@ -186,6 +211,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
                 while True:
                     time.sleep(3600)
             except KeyboardInterrupt:
+                logger.debug("Interrupted by user")
                 pass
 
 
@@ -199,9 +225,11 @@ class Activity:
         env_port = int(os.environ.get("LIVE_LINK_PORT", "8210"))
         self.host = host or env_host
         self.port = port or env_port
+        logger.debug("Activity created with host=%s port=%s", self.host, self.port)
 
 
     def on_start(self) -> None:
+        logger.debug("Activity starting")
         run(_resolve_hosts(self.host), self.port, block=False)
 
 
@@ -225,6 +253,7 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    logger.debug("Parsed arguments: host=%s port=%s", args.host, args.port)
     run(_resolve_hosts(args.host), args.port)
 
 
