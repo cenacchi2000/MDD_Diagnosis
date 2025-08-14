@@ -17,6 +17,10 @@ Usage examples::
     # Try both loopback and the host's LAN address
     python ameca_tritium_sender.py --host auto
 
+The host and port can also be provided via ``LIVE_LINK_HOST`` and
+``LIVE_LINK_PORT`` environment variables which is useful when launching the
+script via the Tritium IDE run button.
+
 
 The bridge script (``ameca_livelink_bridge.py``) must be running on the
 specified host and port. In Unreal, select subject ``AmecaBridge`` in the Live
@@ -24,9 +28,10 @@ Link panel for your MetaHuman avatar.
 """
 
 
-
 import argparse
 import json
+import os
+
 import socket
 from typing import Dict, Iterable, List
 
@@ -187,9 +192,14 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
 class Activity:
     """Tritium activity entry point providing a run button in the IDE."""
 
-    def __init__(self, host: str = "auto", port: int = 8210) -> None:
-        self.host = host
-        self.port = port
+    def __init__(self, host: str | None = None, port: int | None = None) -> None:
+        # Allow environment variables to override defaults so users can select
+        # the Unreal bridge destination without editing the script.
+        env_host = os.environ.get("LIVE_LINK_HOST", "auto")
+        env_port = int(os.environ.get("LIVE_LINK_PORT", "8210"))
+        self.host = host or env_host
+        self.port = port or env_port
+
 
     def on_start(self) -> None:
         run(_resolve_hosts(self.host), self.port, block=False)
@@ -200,13 +210,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Stream Ameca facial data to Unreal Live Link")
     parser.add_argument(
         "--host",
-        default="127.0.0.1",
+        default=os.environ.get("LIVE_LINK_HOST", "127.0.0.1"),
         help=(
             "Destination IP of ameca_livelink_bridge. Accepts a comma-separated"
-            " list. Use 'auto' to send to both loopback and the machine's LAN IP"
+            " list. Use 'auto' to send to both loopback and the machine's LAN IP."
+            " Can also be supplied via LIVE_LINK_HOST env var"
         ),
     )
-    parser.add_argument("--port", type=int, default=8210, help="UDP port of the bridge")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("LIVE_LINK_PORT", "8210")),
+        help="UDP port of the bridge (or LIVE_LINK_PORT env var)",
+    )
+
     args = parser.parse_args()
     run(_resolve_hosts(args.host), args.port)
 
