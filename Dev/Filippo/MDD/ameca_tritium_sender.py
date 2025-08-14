@@ -62,6 +62,23 @@ robot_state = None
 head_yaw = head_pitch = head_roll = None
 mix_pose = None
 
+# Demand prefixes to forward as generic facial channels. The MixDemandHub
+# exposes a large set of values (brows, eyelids, nose, etc.) and the bridge
+# only needs the raw numeric value.  Each demand name that begins with one of
+# these prefixes will be forwarded to the Live Link bridge as an individual
+# channel.
+FACIAL_PREFIXES: tuple[str, ...] = (
+    "Brow",
+    "Eyelid",
+    "Eye",
+    "Gaze",
+    "Nose",
+    "Lip",
+    "Mouth",
+    "Jaw",
+)
+
+
 
 
 def _resolve_hosts(host: str) -> List[str]:
@@ -145,6 +162,8 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
 
     mouth = system.unstable.owner.mouth_driver
     blink_state = False
+    speech_state = False
+
     logger.debug("Initial mouth driver: %s", mouth)
 
     def send(payload: Dict[str, float | str]) -> None:
@@ -159,7 +178,8 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
 
     @system.tick(fps=60)
     def stream() -> None:
-        nonlocal mouth, blink_state
+        nonlocal mouth, blink_state, speech_state
+
         global mix_pose
         if mouth is None:
             logger.debug("Mouth driver not set; attempting to reacquire")
@@ -191,9 +211,16 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         roll += head_vals.get(("Neck Roll", "Mesmer Neck 1"), 0.0)
 
         pose_payload = {"type": "pose", "yaw": yaw, "pitch": pitch, "roll": roll}
-
         logger.debug("Pose payload: %s", pose_payload)
         send(pose_payload)
+
+        # Forward all other MixDemandHub facial channels so the avatar can mirror
+        # nose, brow, eyelid and gaze motion.  The demand name itself is sent as
+        # the channel identifier; downstream consumers can remap as needed.
+        for (demand, _board), value in head_vals.items():
+            if any(demand.startswith(prefix) for prefix in FACIAL_PREFIXES):
+                send({"type": "blendshape", "name": demand, "value": float(value)})
+
 
         for name, weight in mouth.viseme_demands.items():
             logger.debug("Viseme %s weight %s", name, weight)
@@ -221,6 +248,11 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
             send({"type": "gesture", "name": "blink"})
         blink_state = robot_state.blinking
         logger.debug("Blink state: %s", blink_state)
+
+        if robot_state.speaking != speech_state:
+            send({"type": "speech", "speaking": bool(robot_state.speaking)})
+            speech_state = robot_state.speaking
+
 
     if block:
         logger.debug("Blocking execution; entering runtime loop")
