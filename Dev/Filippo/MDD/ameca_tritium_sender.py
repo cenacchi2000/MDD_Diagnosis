@@ -151,6 +151,12 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
                     send({"type": "viseme", "name": phoneme, "weight": float(weight)})
 
         open_amt = getattr(mouth, "mouth_open", 0.0)
+        if callable(open_amt):  # ``mouth_open`` may be a @parameter partial
+            try:
+                open_amt = open_amt()
+            except Exception:
+                open_amt = 0.0
+
         if open_amt > 0.01:
             # Mouth driver exposes [0,2] range; Live Link expects [0,1]
             send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
