@@ -80,6 +80,7 @@ FACIAL_PREFIXES: tuple[str, ...] = (
 
 
 
+
 def _resolve_hosts(host: str) -> List[str]:
     """Return a list of destination IPs.
 
@@ -162,6 +163,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
     mouth = system.unstable.owner.mouth_driver
     blink_state = False
     speech_state = False
+
     logger.debug("Initial mouth driver: %s", mouth)
 
     def send(payload: Dict[str, float | str]) -> None:
@@ -177,6 +179,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
     @system.tick(fps=60)
     def stream() -> None:
         nonlocal mouth, blink_state, speech_state
+
         global mix_pose
         if mouth is None:
             logger.debug("Mouth driver not set; attempting to reacquire")
@@ -210,6 +213,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         pose_payload = {"type": "pose", "yaw": yaw, "pitch": pitch, "roll": roll}
         if not any(abs(v) > 1e-6 for v in (yaw, pitch, roll)):
             logger.debug("Pose values all zero; check head/neck sources")
+
         logger.debug("Pose payload: %s", pose_payload)
         send(pose_payload)
 
@@ -237,6 +241,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
             if phoneme:
                 send({"type": "viseme", "name": phoneme, "weight": float(weight)})
 
+
         open_amt = getattr(mouth, "mouth_open", 0.0)
         if callable(open_amt):  # ``mouth_open`` may be a @parameter partial
             try:
@@ -250,6 +255,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         send({"type": "viseme", "name": "Open", "weight": float(open_amt) / 2.0})
 
 
+
         if robot_state.blinking and not blink_state:
             logger.debug("Blink detected")
             send({"type": "gesture", "name": "blink"})
@@ -259,6 +265,7 @@ def run(hosts: Iterable[str], port: int, *, block: bool = True) -> None:
         if robot_state.speaking != speech_state:
             send({"type": "speech", "speaking": bool(robot_state.speaking)})
             speech_state = robot_state.speaking
+
 
     if block:
         logger.debug("Blocking execution; entering runtime loop")
